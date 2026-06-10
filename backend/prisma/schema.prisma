@@ -1,0 +1,367 @@
+// prisma/schema.prisma
+// DigiTeam - Full Backend Schema
+// PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS & AUTH ───────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  phone         String?   @unique
+  name          String
+  avatarUrl     String?
+  role          Role      @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  passwordHash  String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  orders        Order[]
+  projectLeads  ProjectLead[]
+  reviews       Review[]
+  tokens        RefreshToken[]
+  cart          Cart?
+  wishlist      WishlistItem[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  CUSTOMER
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ─── SERVICES ────────────────────────────────────────────────────────────────
+
+model Service {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  icon        String
+  category    String
+  title       String
+  description String
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  features    ServiceFeature[]
+  projectLeads ProjectLead[]
+
+  @@map("services")
+}
+
+model ServiceFeature {
+  id        String  @id @default(uuid())
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int     @default(0)
+
+  @@map("service_features")
+}
+
+// ─── PRODUCTS / SHOP ─────────────────────────────────────────────────────────
+
+model Category {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  name        String
+  description String?
+  parentId    String?
+  parent      Category? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  products    Product[]
+  createdAt   DateTime  @default(now())
+
+  @@map("categories")
+}
+
+model Product {
+  id            String        @id @default(uuid())
+  slug          String        @unique
+  name          String
+  subtitle      String?
+  description   String?
+  icon          String?
+  thumbnailUrl  String?
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  price         Int           // stored in Rials (Toman * 10)
+  comparePrice  Int?          // original price for discounts
+  badge         String?       // "پرفروش" | "جدید" | "پیشنهادی"
+  isActive      Boolean       @default(true)
+  isFeatured    Boolean       @default(false)
+  stock         Int           @default(-1) // -1 = unlimited (digital)
+  downloadUrl   String?       // for digital products
+  tags          String[]      @default([])
+  metadata      Json?         // flexible extra data
+  totalSales    Int           @default(0)
+  rating        Float         @default(0)
+  reviewCount   Int           @default(0)
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  orderItems    OrderItem[]
+  reviews       Review[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+  images        ProductImage[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+
+  @@map("product_images")
+}
+
+// ─── CART ─────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String?    @unique
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?    // for guest carts
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+// ─── ORDERS & PAYMENTS ───────────────────────────────────────────────────────
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique // e.g. DT-1404-0001
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentMethod   String?       // "zarinpal" | "idpay" | etc.
+  paymentRef      String?       // gateway reference
+  totalAmount     Int           // Rials
+  discountAmount  Int           @default(0)
+  finalAmount     Int           // totalAmount - discountAmount
+  couponCode      String?
+  notes           String?
+  metadata        Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items     OrderItem[]
+  downloads OrderDownload[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model OrderItem {
+  id         String  @id @default(uuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  quantity   Int
+  unitPrice  Int     // price at time of purchase
+  totalPrice Int
+
+  @@map("order_items")
+}
+
+model OrderDownload {
+  id          String    @id @default(uuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productName String
+  downloadUrl String
+  token       String    @unique
+  expiresAt   DateTime
+  downloadCount Int     @default(0)
+  maxDownloads  Int     @default(3)
+  createdAt   DateTime  @default(now())
+
+  @@map("order_downloads")
+}
+
+// ─── PROJECT LEADS (Contact Form) ─────────────────────────────────────────────
+
+model ProjectLead {
+  id          String     @id @default(uuid())
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
+  serviceId   String?
+  service     Service?   @relation(fields: [serviceId], references: [id])
+  name        String?
+  email       String
+  phone       String?
+  projectType String?
+  budget      String?
+  description String?
+  status      LeadStatus @default(NEW)
+  assignedTo  String?    // admin user id
+  notes       String?    // internal notes
+  source      String?    // "hero" | "services" | "banner" | "footer"
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("project_leads")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CONVERTED
+  CLOSED
+}
+
+// ─── REVIEWS ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  title      String?
+  body       String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+// ─── COUPONS ──────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  type           CouponType @default(PERCENTAGE)
+  value          Int       // percentage or fixed amount
+  minOrderAmount Int?
+  maxDiscount    Int?
+  usageLimit     Int?
+  usageCount     Int       @default(0)
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("coupons")
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+// ─── SITE SETTINGS ────────────────────────────────────────────────────────────
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  group     String?  @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ─── TICKER / MARQUEE ─────────────────────────────────────────────────────────
+
+model TickerItem {
+  id        String  @id @default(uuid())
+  text      String
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  @@map("ticker_items")
+}
+
+// ─── STATS (Hero counters) ─────────────────────────────────────────────────────
+
+model SiteStat {
+  id        String  @id @default(uuid())
+  key       String  @unique // "projects" | "clients" | "rating"
+  label     String
+  value     String  // stored as string for flexibility ("120" or "۵ ⭐")
+  isStatic  Boolean @default(false)
+  suffix    String?
+
+  @@map("site_stats")
+}

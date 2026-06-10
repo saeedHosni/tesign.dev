@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+/* ── Design Tokens ── */
+@theme {
+  --font-vazir: 'Vazirmatn', sans-serif;
+
+  --color-bg-base:       #1E1E1E;
+  --color-bg-surface:    #252525;
+  --color-bg-card:       #2A2A2A;
+  --color-bg-card-hover: #2F2F2F;
+
+  --color-accent-yellow: #F5C518;
+  --color-accent-orange: #FF6B35;
+
+  --color-text-primary:   #F0F0F0;
+  --color-text-secondary: #A8A8A8;
+  --color-text-muted:     #6A6A6A;
+
+  --color-border-default: rgba(255,255,255,0.07);
+  --color-border-accent:  rgba(245,197,24,0.35);
+
+  --shadow-card: 0 4px 32px rgba(0,0,0,0.45);
+  --shadow-glow: 0 0 40px rgba(245,197,24,0.15);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  --animate-fade-up:        fadeUp 0.6s ease both;
+  --animate-fade-up-1:      fadeUp 0.6s 0.1s ease both;
+  --animate-fade-up-2:      fadeUp 0.6s 0.2s ease both;
+  --animate-fade-up-3:      fadeUp 0.6s 0.3s ease both;
+  --animate-fade-up-4:      fadeUp 0.6s 0.4s ease both;
+  --animate-fade-in:        fadeIn 0.8s 0.2s ease both;
+  --animate-float:          float 5s ease-in-out infinite;
+  --animate-float-delayed:  float 4s 1s ease-in-out infinite;
+  --animate-float-delayed2: float 5s 2s ease-in-out infinite;
+  --animate-pulse-glow:     pulseGlow 3s infinite;
+  --animate-pulse-glow-2:   pulseGlow 2s infinite;
+  --animate-marquee:        marquee 28s linear infinite;
+  --animate-gradient-shift: gradientShift 4s ease infinite;
+  --animate-blob:           blob 8s ease-in-out infinite;
+  --animate-blob-delayed:   blob 8s 4s ease-in-out infinite;
+  --animate-spin-slow:      spinSlow 10s linear infinite;
+}
+
+/* ── Keyframes ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-12px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,197,24,0); }
+  50%       { box-shadow: 0 0 32px 8px rgba(245,197,24,0.18); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes blob {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  50%       { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+}
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Base ── */
+html {
+  scroll-behavior: smooth;
+  direction: rtl;
+}
+
+body {
+  font-family: var(--font-vazir), sans-serif;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+  line-height: 1.7;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #1E1E1E; }
+::-webkit-scrollbar-thumb { background: #F5C518; border-radius: 99px; }
+
+/* ── Noise overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ── Utility Classes ── */
+.grad-text {
+  background: linear-gradient(135deg, #F5C518 0%, #FF6B35 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grad-text-animated {
+  background: linear-gradient(135deg, #F5C518 0%, #FF6B35 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s ease infinite;
+}
+
+.grad-bg {
+  background: linear-gradient(135deg, #F5C518 0%, #FF6B35 100%);
+}
+
+.hero-grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%);
+}
+
+/* ── Scroll Reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ── Nav Active Dot ── */
+.nav-link-active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #F5C518;
+}
+
+/* ── Section Label Line ── */
+.section-label-line::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: linear-gradient(135deg, #F5C518 0%, #FF6B35 100%);
+  border-radius: 2px;
+}
+
+/* ── Footer Link ── */
+.footer-link::before {
+  content: '◆';
+  font-size: 0.4rem;
+  color: #F5C518;
+  opacity: 0.6;
+  margin-left: 6px;
+}
+
+/* ── Service Checkmark ── */
+.service-item-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.service-item-check::before {
+  content: '✓';
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  background: rgba(245,197,24,0.12);
+  color: #F5C518;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Product Thumb Colors ── */
+.product-thumb-1 { background: linear-gradient(135deg, rgba(26,35,126,0.13), rgba(40,53,147,0.67)); }
+.product-thumb-2 { background: linear-gradient(135deg, rgba(27,94,32,0.13), rgba(46,125,50,0.67)); }
+.product-thumb-3 { background: linear-gradient(135deg, rgba(74,20,140,0.13), rgba(106,27,154,0.67)); }
+.product-thumb-4 { background: linear-gradient(135deg, rgba(183,28,28,0.13), rgba(198,40,40,0.67)); }
+
+/* ── Shop section border lines ── */
+.shop-section::before,
+.shop-section::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  background: linear-gradient(135deg, #F5C518 0%, #FF6B35 100%);
+  opacity: 0.4;
+}
+.shop-section::before { top: 0; }
+.shop-section::after  { bottom: 0; }
+
+/* ── Blob shapes ── */
+.blob-shape-1 {
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+}
+.blob-shape-2 {
+  border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+}
