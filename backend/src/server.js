@@ -59,7 +59,7 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 10000,
   message: { success: false, message: 'تعداد تلاش‌های ورود محدود است. لطفاً بعداً تلاش کنید.' },
 });
 
