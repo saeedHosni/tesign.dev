@@ -234,3 +234,9 @@ body::before {
 .blob-shape-2 {
   border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
 }
+
+/* ── Auth progress bar (SuccessScreen) ── */
+@keyframes progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}

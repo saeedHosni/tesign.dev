@@ -63,7 +63,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async ({ email, password }) => {
     setError(null);
     const res = await authApi.login({ email, password });
-    const { accessToken, refreshToken, user: u } = res;
+    const { accessToken, refreshToken, user: u } = res.data;
     saveSession(accessToken, refreshToken, u);
     setUser(u);
     return u;
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
   const register = useCallback(async ({ name, email, password }) => {
     setError(null);
     const res = await authApi.register({ name, email, password });
-    const { accessToken, refreshToken, user: u } = res;
+    const { accessToken, refreshToken, user: u } = res.data;
     saveSession(accessToken, refreshToken, u);
     setUser(u);
     return u;
