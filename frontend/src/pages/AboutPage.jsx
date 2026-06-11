@@ -5,9 +5,9 @@ import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 
 const TEAM = [
-  { name: 'علی رضایی', role: 'مدیر و توسعه‌دهنده ارشد', icon: '👨‍💻', skills: ['React', 'Node.js', 'UI/UX'] },
-  { name: 'سارا محمدی', role: 'طراح UI/UX', icon: '🎨', skills: ['Figma', 'طراحی برند', 'موشن'] },
-  { name: 'محمد احمدی', role: 'متخصص سئو و محتوا', icon: '📈', skills: ['SEO', 'محتوا', 'آنالیتیکس'] },
+  { name: 'ابولفضل هادی نژاد', role: 'مدیر و توسعه‌دهنده ارشد', icon: '👨‍💻', skills: ['React', 'Node.js', 'UI/UX'] },
+  { name: 'امیرحسین نوریتبار', role: 'طراح UI/UX', icon: '🎨', skills: ['Figma', 'طراحی برند', 'موشن'] },
+  { name: 'یاسین قنبری فر', role: 'متخصص سئو و محتوا', icon: '📈', skills: ['SEO', 'محتوا', 'آنالیتیکس'] },
 ];
 
 const VALUES = [
