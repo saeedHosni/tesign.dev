@@ -22,15 +22,16 @@ const BADGE_MAP = {
 };
 
 export function useProducts(params = {}) {
-  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    productApi.getAll(params)
-      .then((res) => {
+    const load = async () => {
+      try {
+        const res = await productApi.getAll(params);
         if (cancelled) return;
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
           const normalized = res.data.map((p, i) => ({
@@ -43,20 +44,27 @@ export function useProducts(params = {}) {
             name:        p.name,
             sub:         p.subtitle || '',
             price:       toFarsiPrice(p.price),
+            priceNum:    p.price,
             delay:       i > 0 ? `reveal-delay-${i % 4}` : '',
             slug:        p.slug,
+            tags:        p.tags || [],
           }));
           setProducts(normalized);
+        } else {
+          // Backend returned empty or failed — use fallback
+          setProducts(FALLBACK_PRODUCTS);
         }
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err.message);
-      })
-      .finally(() => {
+      } catch {
+        if (!cancelled) {
+          // Backend not reachable — silently use fallback
+          setProducts(FALLBACK_PRODUCTS);
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
 
+    load();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(params)]);

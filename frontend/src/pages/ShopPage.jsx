@@ -6,9 +6,70 @@ import ArrowIcon from '../components/ui/ArrowIcon';
 import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_CATEGORIES } from '../data/siteData';
 
-function ProductCard({ product }) {
+// ─── Product Detail Modal ─────────────────────────────────────────────────────
+function ProductModal({ product, onClose }) {
+  if (!product) return null;
   return (
-    <div className="reveal bg-bg-card border border-border-default rounded-lg overflow-hidden transition-all duration-300 hover:border-border-accent hover:-translate-y-1.5 hover:shadow-[0_16px_48px_rgba(0,0,0,0.4)] group">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="relative z-[1] bg-bg-card border border-border-default rounded-xl w-full max-w-[520px] overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
+        onClick={e => e.stopPropagation()}>
+        {/* Thumb */}
+        <div className={`${product.thumbClass} aspect-[16/9] relative flex items-center justify-center`}>
+          <div className="flex flex-col items-center gap-2">
+            <div className="text-[3rem]">{product.icon}</div>
+            <div className="text-[0.75rem] text-text-muted font-semibold">{product.thumbLabel}</div>
+          </div>
+          {product.badge && (
+            <div className="absolute top-3 right-3 grad-bg text-[#111] text-[0.65rem] font-black px-2.5 py-[3px] rounded-full">{product.badge}</div>
+          )}
+          <button onClick={onClose}
+            className="absolute top-3 left-3 w-8 h-8 bg-black/40 border border-white/10 rounded-full grid place-items-center text-white/70 hover:text-white hover:bg-black/60 transition-all cursor-pointer text-[0.9rem]">
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <div className="text-[0.68rem] font-bold text-accent-yellow tracking-[0.08em] uppercase mb-1">{product.category}</div>
+          <h3 className="text-[1.3rem] font-black text-text-primary mb-1">{product.name}</h3>
+          <p className="text-[0.85rem] text-text-muted mb-4">{product.sub}</p>
+
+          {product.tags?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-5">
+              {product.tags.map(tag => (
+                <span key={tag} className="text-[0.7rem] px-2.5 py-1 bg-white/5 rounded-full text-text-secondary border border-border-default">{tag}</span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-4 pt-4 border-t border-border-default">
+            <div>
+              <div className="grad-text text-[1.4rem] font-black">{product.price}</div>
+              <div className="text-[0.65rem] text-text-muted">تومان · دانلود فوری پس از خرید</div>
+            </div>
+            <Button variant="primary" onClick={() => {
+              window.history.pushState({}, '', '/order');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+              window.scrollTo({ top: 0 });
+            }}>
+              🛒 خرید یا سفارش <ArrowIcon />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Product Card ─────────────────────────────────────────────────────────────
+function ProductCard({ product, onSelect }) {
+  return (
+    <div
+      className="reveal bg-bg-card border border-border-default rounded-lg overflow-hidden transition-all duration-300 hover:border-border-accent hover:-translate-y-1.5 hover:shadow-[0_16px_48px_rgba(0,0,0,0.4)] group cursor-pointer"
+      onClick={() => onSelect(product)}
+    >
       <div className={`${product.thumbClass} aspect-[16/10] relative flex items-center justify-center`}>
         <div className="flex flex-col items-center gap-2">
           <div className="text-[2.5rem]">{product.icon}</div>
@@ -39,7 +100,9 @@ function ProductCard({ product }) {
             <div className="grad-text text-[1.1rem] font-black">{product.price}</div>
             <div className="text-[0.65rem] text-text-muted">تومان</div>
           </div>
-          <button className="flex items-center gap-1.5 bg-[rgba(245,197,24,0.1)] border border-border-accent text-accent-yellow px-4 py-2 rounded-sm text-[0.8rem] font-bold font-vazir cursor-pointer transition-all duration-300 hover:grad-bg hover:border-transparent hover:text-[#111] hover:scale-[1.03]">
+          <button
+            onClick={e => { e.stopPropagation(); onSelect(product); }}
+            className="flex items-center gap-1.5 bg-[rgba(245,197,24,0.1)] border border-border-accent text-accent-yellow px-4 py-2 rounded-sm text-[0.8rem] font-bold font-vazir cursor-pointer transition-all duration-300 hover:grad-bg hover:border-transparent hover:text-[#111] hover:scale-[1.03]">
             🛒 خرید
           </button>
         </div>
@@ -68,6 +131,7 @@ function SkeletonCard() {
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const { products, loading } = useProducts({ limit: 20 });
 
   const filtered = products.filter(p => {
@@ -81,6 +145,10 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen pt-[72px]">
+      {selectedProduct && (
+        <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
+
       {/* Header */}
       <div className="relative bg-bg-surface border-b border-border-default py-14 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -122,7 +190,13 @@ export default function ShopPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-            : filtered.map(product => <ProductCard key={product.id || product.name} product={product} />)
+            : filtered.map(product => (
+              <ProductCard
+                key={product.id || product.name}
+                product={product}
+                onSelect={setSelectedProduct}
+              />
+            ))
           }
         </div>
 

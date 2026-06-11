@@ -1,5 +1,5 @@
 // src/services/api.js
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:5000/api';
 
 async function request(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint}`;
@@ -43,7 +43,8 @@ export const serviceApi = {
 };
 
 export const projectApi = {
-  submit: (formData)   => uploadRequest('/projects/submit-form', formData),
+  // Backend route: POST /api/projects  (NOT /projects/submit-form)
+  submit: (formData)   => uploadRequest('/projects', formData),
   submitSimple: (body) => request('/projects', { method: 'POST', body: JSON.stringify(body) }),
 };
 

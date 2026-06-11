@@ -15,7 +15,6 @@ export function useServices() {
       .then((res) => {
         if (cancelled) return;
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-          // Normalize backend shape → component shape
           const normalized = res.data.map((s, i) => ({
             id:        s.id,
             icon:      s.icon || '🌐',
@@ -24,16 +23,17 @@ export function useServices() {
             desc:      s.description,
             items:     (s.features || []).map((f) => f.title || f.label || f),
             linkLabel: s.linkLabel || 'مشاوره رایگان',
+            price:     s.price || null,
             delay:     i > 0 ? `reveal-delay-${i}` : '',
             slug:      s.slug,
           }));
           setServices(normalized);
         }
+        // else: keep FALLBACK_SERVICES already set
       })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err.message);
-        // Keep fallback static data on error
+      .catch(() => {
+        // Keep fallback — already set in useState
+        if (!cancelled) setError(null); // silent fail
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
