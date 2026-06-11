@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
     }
     authApi.me()
       .then(res => {
-        const u = res.user || res;
+        const u = res.data || res.user || res;
         setUser(u);
         localStorage.setItem(USER_KEY, JSON.stringify(u));
       })
@@ -96,7 +96,7 @@ export function AuthProvider({ children }) {
 
   const refreshProfile = useCallback(async () => {
     const res = await authApi.me();
-    const u = res.user || res;
+    const u = res.data || res.user || res;
     setUser(u);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
     return u;

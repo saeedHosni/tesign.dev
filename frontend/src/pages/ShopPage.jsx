@@ -197,7 +197,7 @@ export default function ShopPage() {
             <div className="text-4xl mb-4">🎯</div>
             <h3 className="text-[1.5rem] font-black text-text-primary mb-3">محصول مناسب پیدا نکردید؟</h3>
             <p className="text-text-secondary max-w-[420px] mx-auto mb-6">
-              پروژه سفارشی خود را ثبت کنید. تیم دیجی‌تیم دقیقاً آنچه نیاز دارید را می‌سازد.
+              پروژه سفارشی خود را ثبت کنید. تیم تیزاین دقیقاً آنچه نیاز دارید را می‌سازد.
             </p>
             <Button
               href="/order"

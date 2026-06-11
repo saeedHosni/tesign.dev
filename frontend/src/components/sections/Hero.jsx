@@ -26,7 +26,7 @@ function HeroMockup() {
           <div className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
           <div dir="ltr" className="flex-1 mx-3 bg-white/5 rounded-[6px] h-[26px] flex items-center px-2.5 text-[0.7rem] text-text-muted">
-            digiteam.ir
+            tesign.team
           </div>
         </div>
         {/* Body */}

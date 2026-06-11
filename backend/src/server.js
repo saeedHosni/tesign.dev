@@ -106,7 +106,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`\n🚀 DigiTeam API running on port ${PORT}`);
+  console.log(`\n🚀 Tesign API running on port ${PORT}`);
   console.log(`   Mode: ${process.env.NODE_ENV}`);
   console.log(`   Health: http://localhost:${PORT}/health\n`);
 });

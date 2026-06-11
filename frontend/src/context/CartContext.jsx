@@ -5,7 +5,7 @@ import { cartApi } from '../services/api';
 
 const CartContext = createContext(null);
 
-const LS_KEY = 'digiteam_cart';
+const LS_KEY = 'tesign_cart';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,8 +54,8 @@ export function CartProvider({ children }) {
     setLoading(true);
     cartApi.get()
       .then(res => {
-        if (res?.cart?.items) {
-          setItems(res.cart.items.map(normalizeItem));
+        if (res?.data?.items) {
+          setItems(res.data.items.map(normalizeItem));
         }
       })
       .catch(() => {
@@ -71,8 +71,8 @@ export function CartProvider({ children }) {
     if (useBackend) {
       try {
         const res = await cartApi.add(product.id, quantity);
-        if (res?.cart?.items) {
-          setItems(res.cart.items.map(normalizeItem));
+        if (res?.data?.items) {
+          setItems(res.data.items.map(normalizeItem));
           return;
         }
       } catch {
@@ -112,8 +112,8 @@ export function CartProvider({ children }) {
     if (useBackend) {
       try {
         const res = await cartApi.update(itemId, quantity);
-        if (res?.cart?.items) {
-          setItems(res.cart.items.map(normalizeItem));
+        if (res?.data?.items) {
+          setItems(res.data.items.map(normalizeItem));
           return;
         }
       } catch {
@@ -134,8 +134,8 @@ export function CartProvider({ children }) {
     if (useBackend) {
       try {
         const res = await cartApi.remove(itemId);
-        if (res?.cart?.items) {
-          setItems(res.cart.items.map(normalizeItem));
+        if (res?.data?.items) {
+          setItems(res.data.items.map(normalizeItem));
           return;
         }
       } catch {

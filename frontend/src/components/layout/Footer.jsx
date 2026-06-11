@@ -59,8 +59,7 @@ export default function Footer() {
               </SocialBtn>
             </div>
             <div className="mt-5 flex flex-col gap-1">
-              <a href="https://tesign.dev" className="text-[0.78rem] text-accent-yellow/70 hover:text-accent-yellow transition-colors no-underline">🌐 tesign.dev</a>
-              <a href="https://tesign.ir" className="text-[0.78rem] text-accent-yellow/70 hover:text-accent-yellow transition-colors no-underline">🌐 tesign.ir</a>
+              <a href="https://tesign.team" className="text-[0.78rem] text-accent-yellow/70 hover:text-accent-yellow transition-colors no-underline">🌐 tesign.team</a>
             </div>
           </div>
           <FooterLinkCol title="خدمات"   links={FOOTER_SERVICES} />

@@ -262,7 +262,7 @@ export default function AuthModal({ initialMode = 'login', onClose }) {
 
   const HEADER = {
     login:    { icon: '🔑', title: 'خوش برگشتی!',          sub: 'برای دسترسی به پنل کاربری وارد شوید' },
-    register: { icon: '✨', title: 'به دیجی‌تیم بپیوندید', sub: 'ثبت‌نام رایگان — در کمتر از یک دقیقه'  },
+    register: { icon: '✨', title: 'به تیزاین بپیوندید', sub: 'ثبت‌نام رایگان — در کمتر از یک دقیقه'  },
   };
 
   const h = HEADER[mode];

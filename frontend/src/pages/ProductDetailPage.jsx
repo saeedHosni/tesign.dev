@@ -251,7 +251,7 @@ export default function ProductDetailPage({ slug }) {
           <div className="text-3xl mb-4">🎯</div>
           <h3 className="text-xl font-black text-text-primary mb-2">پروژه سفارشی دارید؟</h3>
           <p className="text-text-muted max-w-[400px] mx-auto mb-6 text-sm">
-            اگر محصول آماده مناسب نبود، تیم دیجی‌تیم دقیقاً آنچه نیاز دارید را می‌سازد.
+            اگر محصول آماده مناسب نبود، تیم تیزاین دقیقاً آنچه نیاز دارید را می‌سازد.
           </p>
           <Button variant="outline" onClick={() => navigate('/order')}>ثبت پروژه سفارشی <ArrowIcon /></Button>
         </div>

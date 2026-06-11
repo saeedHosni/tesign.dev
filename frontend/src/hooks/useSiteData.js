@@ -19,12 +19,14 @@ export function useSiteData() {
     settingsApi.getPublic()
       .then((res) => {
         if (cancelled) return;
-        if (res && (res.ticker || res.stats || res.services || res.featuredProducts)) {
+        // Backend wraps response in { success: true, data: { ... } }
+        const d = res?.data || res;
+        if (d && (d.ticker || d.stats || d.services || d.featuredProducts)) {
           setData({
-            ticker:           res.ticker || FALLBACK.ticker,
-            stats:            res.stats  || FALLBACK.stats,
-            services:         res.services || FALLBACK.services,
-            featuredProducts: res.featuredProducts || FALLBACK.featuredProducts,
+            ticker:           d.ticker || FALLBACK.ticker,
+            stats:            d.stats  || FALLBACK.stats,
+            services:         d.services || FALLBACK.services,
+            featuredProducts: d.featuredProducts || FALLBACK.featuredProducts,
           });
         }
       })
