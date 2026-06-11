@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_CATEGORIES } from '../data/siteData';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 // ─── Product Detail Modal ─────────────────────────────────────────────────────
 function ProductModal({ product, onClose }) {
@@ -133,6 +134,7 @@ export default function ShopPage() {
   const [search, setSearch] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { products, loading } = useProducts({ limit: 20 });
+  useScrollReveal();
 
   const filtered = products.filter(p => {
     const matchCat = activeCategory === 'all' || p.category === activeCategory;
