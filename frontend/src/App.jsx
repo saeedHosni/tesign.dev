@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useScrollReveal } from './hooks/useScrollReveal';
 import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext';
 import Navbar  from './components/layout/Navbar';
 import Footer  from './components/layout/Footer';
 
@@ -19,6 +20,7 @@ import OrderPage          from './pages/OrderPage';
 import AboutPage          from './pages/AboutPage';
 import ProductDetailPage  from './pages/ProductDetailPage';
 import CheckoutPage       from './pages/CheckoutPage';
+import DashboardPage      from './pages/DashboardPage';
 
 function HomePage() {
   useScrollReveal();
@@ -49,23 +51,26 @@ function Router() {
   }
 
   switch (path) {
-    case '/shop':     return <ShopPage />;
-    case '/services': return <ServicesPage />;
-    case '/order':    return <OrderPage />;
-    case '/about':    return <AboutPage />;
-    case '/checkout': return <CheckoutPage />;
-    default:          return <HomePage />;
+    case '/shop':       return <ShopPage />;
+    case '/services':   return <ServicesPage />;
+    case '/order':      return <OrderPage />;
+    case '/about':      return <AboutPage />;
+    case '/checkout':   return <CheckoutPage />;
+    case '/dashboard':  return <DashboardPage />;
+    default:            return <HomePage />;
   }
 }
 
 export default function App() {
   return (
-    <CartProvider>
-      <div className="bg-bg-base text-text-primary font-vazir leading-[1.7] min-h-screen">
-        <Navbar />
-        <Router />
-        <Footer />
-      </div>
-    </CartProvider>
+    <AuthProvider>
+      <CartProvider>
+        <div className="bg-bg-base text-text-primary font-vazir leading-[1.7] min-h-screen">
+          <Navbar />
+          <Router />
+          <Footer />
+        </div>
+      </CartProvider>
+    </AuthProvider>
   );
 }
