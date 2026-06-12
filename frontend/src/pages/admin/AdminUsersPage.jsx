@@ -127,7 +127,7 @@ export default function AdminUsersPage() {
     try {
       const res = await adminApi.getUsers({ page, limit: PER_PAGE, search: search || undefined, role: role || undefined });
       setUsers(res.data || res.users || []);
-      setTotal(res.total || 0);
+      setTotal(res.pagination?.total || res.total || 0);
     } catch (e) {
       setError(e.message);
     } finally {

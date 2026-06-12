@@ -230,7 +230,7 @@ export function AdminReviewsPage() {
                   <Td><span className="text-text-primary text-sm">{r.user?.name || '—'}</span></Td>
                   <Td><span className="text-text-secondary text-xs">{r.product?.name || '—'}</span></Td>
                   <Td><span className="text-accent-yellow text-sm">{'★'.repeat(r.rating || 0)}</span></Td>
-                  <Td><span className="text-text-secondary text-xs line-clamp-2 max-w-[200px] block">{r.comment || '—'}</span></Td>
+                  <Td><span className="text-text-secondary text-xs line-clamp-2 max-w-[200px] block">{r.body || r.comment || '—'}</span></Td>
                   <Td><Badge color={r.isApproved ? 'green' : 'yellow'}>{r.isApproved ? 'تأیید شده' : 'در انتظار'}</Badge></Td>
                   <Td className="text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -292,12 +292,12 @@ export function AdminCouponsPage() {
     setSaving(true);
     try {
       await adminApi.createCoupon({
-        code:      form.code.toUpperCase(),
-        type:      form.type,
-        value:     Number(form.value),
-        minOrder:  form.minOrder ? Number(form.minOrder) : null,
-        maxUses:   form.maxUses  ? Number(form.maxUses)  : null,
-        expiresAt: form.expiresAt || null,
+        code:           form.code.toUpperCase(),
+        type:           form.type,
+        value:          Number(form.value),
+        minOrderAmount: form.minOrder ? Number(form.minOrder) : null,
+        usageLimit:     form.maxUses  ? Number(form.maxUses)  : null,
+        expiresAt:      form.expiresAt || null,
       });
       showToast('کوپن ایجاد شد');
       setShowForm(false); setForm(EMPTY);

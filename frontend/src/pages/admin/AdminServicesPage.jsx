@@ -99,7 +99,9 @@ export default function AdminServicesPage() {
   const [error,    setError]    = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null);
   const [saving,   setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [toast,    setToast]    = useState(null);
 
   const showToast = (msg, type = 'success') => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3500); };
@@ -127,6 +129,16 @@ export default function AdminServicesPage() {
       setShowForm(false); setEditItem(null);
       load();
     } catch (e) { showToast(e.message, 'error'); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await adminApi.deleteService(deleteItem.id);
+      showToast('سرویس حذف شد');
+      setDeleteItem(null);
+      load();
+    } catch (e) { showToast(e.message, 'error'); } finally { setDeleting(false); }
   };
 
   return (
@@ -167,10 +179,16 @@ export default function AdminServicesPage() {
                 <Td><span className="text-text-secondary text-sm">{(s.features || []).length}</span></Td>
                 <Td><Badge color={s.isActive ? 'green' : 'red'}>{s.isActive ? 'فعال' : 'غیرفعال'}</Badge></Td>
                 <Td className="text-center">
-                  <button onClick={() => { setEditItem({ ...s, features: s.features || [{ title: '' }] }); setShowForm(true); }}
-                    className="text-xs text-accent-yellow border border-accent-yellow/25 bg-accent-yellow/5 hover:bg-accent-yellow/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
-                    ویرایش
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => { setEditItem({ ...s, features: s.features || [{ title: '' }] }); setShowForm(true); }}
+                      className="text-xs text-accent-yellow border border-accent-yellow/25 bg-accent-yellow/5 hover:bg-accent-yellow/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
+                      ویرایش
+                    </button>
+                    <button onClick={() => setDeleteItem(s)}
+                      className="text-xs text-red-400 border border-red-400/25 bg-red-400/5 hover:bg-red-400/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
+                      حذف
+                    </button>
+                  </div>
                 </Td>
               </Tr>
             ))}
@@ -181,6 +199,17 @@ export default function AdminServicesPage() {
         <Modal title={editItem ? `ویرایش: ${editItem.title}` : 'خدمت جدید'} onClose={() => { setShowForm(false); setEditItem(null); }} maxWidth="max-w-2xl">
           <ServiceForm initial={editItem} onSave={handleSave} onClose={() => { setShowForm(false); setEditItem(null); }} saving={saving} />
         </Modal>
+      )}
+      {deleteItem && (
+        <ConfirmDialog
+          title="حذف خدمت"
+          description={`آیا از حذف «${deleteItem.title}» مطمئنید؟`}
+          confirmLabel="حذف"
+          danger
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+        />
       )}
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </AdminLayout>

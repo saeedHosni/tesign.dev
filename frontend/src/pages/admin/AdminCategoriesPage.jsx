@@ -117,7 +117,7 @@ export default function AdminCategoriesPage() {
     setLoading(true); setError(null);
     try {
       const [cats, prods] = await Promise.all([
-        productApi.getCategories(),
+        adminApi.getAdminCategories(),
         productApi.getAll({ limit: 200 }),
       ]);
       setCategories(cats.data || cats.categories || []);
@@ -138,8 +138,7 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     try {
       if (editItem) {
-        // No direct update API in README — update via createCategory or use products categories endpoint
-        await adminApi.createCategory(data); // ideally would be updateCategory
+        await adminApi.updateCategory(editItem.id, data);
         showToast('دسته‌بندی ذخیره شد');
       } else {
         await adminApi.createCategory(data);

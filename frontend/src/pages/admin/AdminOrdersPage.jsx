@@ -52,7 +52,7 @@ function OrderDetailModal({ order, onClose, onConfirm, confirming }) {
                   <p className="text-text-primary text-sm">{item.product?.name || item.name || '—'}</p>
                   <span className="text-text-muted text-xs">× {item.quantity}</span>
                 </div>
-                <span className="text-text-secondary text-sm">{toPrice(item.price * item.quantity)}</span>
+                <span className="text-text-secondary text-sm">{toPrice((item.unitPrice ?? item.price) * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -108,9 +108,9 @@ export default function AdminOrdersPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await adminApi.getAllOrders({ page, limit: PER_PAGE, status: status || undefined });
+      const res = await adminApi.getAllOrders({ page, limit: PER_PAGE, paymentStatus: status || undefined });
       setOrders(res.data || res.orders || []);
-      setTotal(res.total || 0);
+      setTotal(res.pagination?.total || res.total || 0);
     } catch (e) {
       setError(e.message);
     } finally {
