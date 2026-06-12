@@ -1,5 +1,11 @@
 // src/controllers/project.controller.js
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import prisma from '../config/db.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadDir = path.join(__dirname, '../../uploads/project-files');
 
 // Simple email format check
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -13,8 +19,11 @@ export const submitProjectLead = async (req, res, next) => {
       phone,
       serviceId,
       projectType,
+      subcategories,
       budget,
+      timeline,
       description,
+      attachments,
       source = 'banner',
     } = req.body;
 
@@ -39,6 +48,51 @@ export const submitProjectLead = async (req, res, next) => {
       }
     }
 
+    // Normalize subcategories to a clean array of non-empty strings
+    let subcategoriesList = [];
+    if (subcategories !== undefined) {
+      if (!Array.isArray(subcategories)) {
+        return res.status(400).json({ success: false, message: 'زیردسته‌ها باید به صورت آرایه ارسال شوند.' });
+      }
+      subcategoriesList = subcategories
+        .filter((s) => typeof s === 'string' && s.trim().length > 0)
+        .map((s) => s.trim());
+    }
+
+    // Validate & sanitize attachments (must reference files previously
+    // uploaded via POST /api/upload/project-files)
+    let attachmentsList = [];
+    if (attachments !== undefined) {
+      if (!Array.isArray(attachments)) {
+        return res.status(400).json({ success: false, message: 'فایل‌های مرجع باید به صورت آرایه ارسال شوند.' });
+      }
+      if (attachments.length > 5) {
+        return res.status(400).json({ success: false, message: 'حداکثر ۵ فایل مرجع می‌توانید ارسال کنید.' });
+      }
+
+      for (const att of attachments) {
+        if (!att || typeof att.filename !== 'string') {
+          return res.status(400).json({ success: false, message: 'اطلاعات فایل مرجع نامعتبر است.' });
+        }
+
+        // Make sure the filename refers to a file that actually exists in the
+        // project-files upload directory (and prevent path traversal).
+        const safeFilename = path.basename(att.filename);
+        const filePath = path.join(uploadDir, safeFilename);
+        if (safeFilename !== att.filename || !fs.existsSync(filePath)) {
+          return res.status(400).json({ success: false, message: 'یکی از فایل‌های مرجع یافت نشد.' });
+        }
+
+        attachmentsList.push({
+          filename: safeFilename,
+          originalName: typeof att.originalName === 'string' ? att.originalName : null,
+          url: typeof att.url === 'string' ? att.url : `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/project-files/${safeFilename}`,
+          mimetype: typeof att.mimetype === 'string' ? att.mimetype : null,
+          size: Number.isFinite(Number(att.size)) ? Number(att.size) : null,
+        });
+      }
+    }
+
     const lead = await prisma.projectLead.create({
       data: {
         name,
@@ -46,11 +100,15 @@ export const submitProjectLead = async (req, res, next) => {
         phone,
         serviceId: serviceId || null,
         projectType,
+        subcategories: subcategoriesList,
         budget,
+        timeline,
         description,
         source,
         userId: req.user?.id || null,
+        files: attachmentsList.length > 0 ? { create: attachmentsList } : undefined,
       },
+      include: { files: true },
     });
 
     // TODO: send notification email to admin
@@ -97,6 +155,7 @@ export const getProjectLeads = async (req, res, next) => {
         include: {
           service: { select: { id: true, title: true } },
           user:    { select: { id: true, name: true, email: true } },
+          files:   { select: { id: true, filename: true, originalName: true, url: true, mimetype: true, size: true } },
         },
       }),
       prisma.projectLead.count({ where }),
@@ -112,6 +171,28 @@ export const getProjectLeads = async (req, res, next) => {
         totalPages: Math.ceil(total / Number(limit)),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/projects/:id  [Admin] — single lead with full details + files
+export const getProjectLeadById = async (req, res, next) => {
+  try {
+    const lead = await prisma.projectLead.findUnique({
+      where: { id: req.params.id },
+      include: {
+        service: { select: { id: true, title: true, slug: true } },
+        user:    { select: { id: true, name: true, email: true, phone: true } },
+        files:   true,
+      },
+    });
+
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'درخواست یافت نشد.' });
+    }
+
+    res.json({ success: true, data: lead });
   } catch (error) {
     next(error);
   }
@@ -174,6 +255,28 @@ export const getLeadStats = async (req, res, next) => {
     };
 
     res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/projects/:id/files/:fileId  [Admin] — remove a reference file from a lead
+export const deleteProjectLeadFile = async (req, res, next) => {
+  try {
+    const file = await prisma.projectLeadFile.findUnique({ where: { id: req.params.fileId } });
+
+    if (!file || file.leadId !== req.params.id) {
+      return res.status(404).json({ success: false, message: 'فایل یافت نشد.' });
+    }
+
+    const filePath = path.join(uploadDir, file.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await prisma.projectLeadFile.delete({ where: { id: file.id } });
+
+    res.json({ success: true, message: 'فایل مرجع حذف شد.' });
   } catch (error) {
     next(error);
   }

@@ -98,9 +98,12 @@ export const serviceApi = {
   getBySlug: (slug) => request(`/services/${slug}`),
 };
 
-export const projectApi = {
-  submit:       (formData) => uploadRequest('/projects', formData),
-  submitSimple: (body)     => request('/projects', { method: 'POST', body: JSON.stringify(body) }),
+export const uploadApi = {
+  projectFiles: (files) => {
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    return uploadRequest('/upload/project-files', fd);
+  },
 };
 
 export const authApi = {
@@ -109,8 +112,6 @@ export const authApi = {
   logout:   ()     => request('/auth/logout',          { method: 'POST',  body: JSON.stringify({ refreshToken: localStorage.getItem('tesign_refresh') }) }),
   logoutAll: ()    => request('/auth/logout-all',      { method: 'POST' }),
   me:       ()     => request('/auth/me'),
-  updateMe: (body) => request('/auth/me',              { method: 'PATCH', body: JSON.stringify(body) }),
-  changePassword: (body) => request('/auth/change-password', { method: 'PATCH', body: JSON.stringify(body) }),
 };
 
 export const cartApi = {
@@ -140,6 +141,47 @@ export const wishlistApi = {
 
 export const settingsApi = {
   getPublic: () => request('/settings/public'),
+};
+
+// ─── Dashboard API ─────────────────────────────────────────────────────────────
+// تمام اندپوینت‌های پنل کاربری زیر /api/dashboard — نیاز به Bearer Token دارند
+
+export const dashboardApi = {
+  // خلاصه داشبورد
+  getSummary: () =>
+    request('/dashboard/summary'),
+
+  // پروفایل
+  getProfile:  ()         => request('/dashboard/profile'),
+  updateProfile: (body)   => request('/dashboard/profile',         { method: 'PATCH', body: JSON.stringify(body) }),
+  changePassword: (body)  => request('/dashboard/change-password', { method: 'PATCH', body: JSON.stringify(body) }),
+  changeEmail: (body)     => request('/dashboard/change-email',    { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // سفارشات
+  getOrders: (params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
+    const q = new URLSearchParams(clean).toString();
+    return request(`/dashboard/orders${q ? `?${q}` : ''}`);
+  },
+  getOrderById: (orderId) => request(`/dashboard/orders/${orderId}`),
+
+  // دانلودها
+  getDownloads: () => request('/dashboard/downloads'),
+
+  // پروژه‌ها
+  getProjects: (params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
+    const q = new URLSearchParams(clean).toString();
+    return request(`/dashboard/projects${q ? `?${q}` : ''}`);
+  },
+  getProjectById: (projectId) => request(`/dashboard/projects/${projectId}`),
+  createProject:  (body)      => request('/dashboard/projects', { method: 'POST', body: JSON.stringify(body) }),
+};
+
+// ─── Project API (legacy — برای سازگاری با کد قدیمی) ──────────────────────────
+// داشبورد از dashboardApi.createProject استفاده می‌کند؛ این فقط برای ثبت عمومی (بدون login) است
+export const projectApi = {
+  submit: (body) => request('/projects', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 export const adminApi = {
@@ -178,8 +220,8 @@ export const adminApi = {
   deleteCategory: (id)       => request(`/admin/categories/${id}`, { method: 'DELETE' }),
 
   // Product Images
-  addProductImage:    (productId, body)    => request(`/admin/products/${productId}/images`,              { method: 'POST',   body: JSON.stringify(body) }),
-  deleteProductImage: (productId, imageId) => request(`/admin/products/${productId}/images/${imageId}`,  { method: 'DELETE' }),
+  addProductImage:    (productId, body)    => request(`/admin/products/${productId}/images`,             { method: 'POST',   body: JSON.stringify(body) }),
+  deleteProductImage: (productId, imageId) => request(`/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' }),
 
   // Services
   createService: (body)     => request('/services',       { method: 'POST', body: JSON.stringify(body) }),
@@ -192,9 +234,9 @@ export const adminApi = {
     const q = new URLSearchParams(clean).toString();
     return request(`/orders/admin/all${q ? `?${q}` : ''}`);
   },
-  getOrderById:      (id)         => request(`/orders/${id}`),
-  confirmOrder:      (id)         => request(`/orders/${id}/confirm`,   { method: 'POST' }),
-  updateOrderStatus: (id, body)   => request(`/admin/orders/${id}`,     { method: 'PATCH', body: JSON.stringify(body) }),
+  getOrderById:      (id)       => request(`/orders/${id}`),
+  confirmOrder:      (id)       => request(`/orders/${id}/confirm`,   { method: 'POST' }),
+  updateOrderStatus: (id, body) => request(`/admin/orders/${id}`,     { method: 'PATCH', body: JSON.stringify(body) }),
 
   // Projects
   getProjects: (params = {}) => {
@@ -202,7 +244,8 @@ export const adminApi = {
     const q = new URLSearchParams(clean).toString();
     return request(`/projects${q ? `?${q}` : ''}`);
   },
-  updateProject: (id, body) => request(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  getProjectById: (id)       => request(`/projects/${id}`),
+  updateProject:  (id, body) => request(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 
   // Reviews
   getReviews: (params = {}) => {
@@ -215,16 +258,16 @@ export const adminApi = {
   deleteReview:  (id) => request(`/admin/reviews/${id}`,   { method: 'DELETE' }),
 
   // Coupons
-  getCoupons:   ()           => request('/coupons'),
-  createCoupon: (body)       => request('/coupons',           { method: 'POST',  body: JSON.stringify(body) }),
-  updateCoupon: (id, body)   => request(`/admin/coupons/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteCoupon: (id)         => request(`/coupons/${id}`,     { method: 'DELETE' }),
+  getCoupons:   ()         => request('/coupons'),
+  createCoupon: (body)     => request('/coupons',             { method: 'POST',  body: JSON.stringify(body) }),
+  updateCoupon: (id, body) => request(`/admin/coupons/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteCoupon: (id)       => request(`/coupons/${id}`,       { method: 'DELETE' }),
 
   // Settings
   getSettings:    ()         => request('/settings'),
-  updateSettings: (settings) => request('/settings',          { method: 'PUT', body: JSON.stringify({ settings }) }),
-  updateTicker:   (items)    => request('/settings/ticker',   { method: 'PUT', body: JSON.stringify({ items }) }),
-  updateStats:    (stats)    => request('/settings/stats',    { method: 'PUT', body: JSON.stringify({ stats }) }),
+  updateSettings: (settings) => request('/settings',        { method: 'PUT', body: JSON.stringify({ settings }) }),
+  updateTicker:   (items)    => request('/settings/ticker', { method: 'PUT', body: JSON.stringify({ items }) }),
+  updateStats:    (stats)    => request('/settings/stats',  { method: 'PUT', body: JSON.stringify({ stats }) }),
 
   // Upload
   uploadImage: (file) => {

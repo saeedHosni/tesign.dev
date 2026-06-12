@@ -122,6 +122,7 @@ digiteam-backend/
 | `order_items`     | آیتم‌های سفارش (قیمت لحظه خرید)           |
 | `order_downloads` | لینک دانلود محصولات دیجیتال                |
 | `project_leads`   | فرم ثبت پروژه                              |
+| `project_lead_files` | فایل‌های مرجع آپلودشده با فرم ثبت سفارش |
 | `reviews`         | نظرات (فقط خریداران، نیاز به تأیید)         |
 | `coupons`         | کدهای تخفیف (درصدی / مقداری)              |
 | `site_settings`   | تنظیمات سایت (key-value)                  |
@@ -180,12 +181,40 @@ digiteam-backend/
 
 ### 📝 ثبت پروژه `/api/projects`
 
-| Method | Path     | Access  | توضیح                          |
-|--------|----------|---------|--------------------------------|
-| POST   | `/`      | Public  | ارسال فرم تماس (auth اختیاری) |
-| GET    | `/`      | Admin   | لیست درخواست‌ها + فیلتر       |
-| GET    | `/stats` | Admin   | آمار تعداد بر اساس وضعیت      |
-| PATCH  | `/:id`   | Admin   | تغییر status / notes / assignedTo |
+| Method | Path             | Access  | توضیح                          |
+|--------|------------------|---------|--------------------------------|
+| POST   | `/`              | Public  | ارسال فرم ثبت سفارش (auth اختیاری) |
+| GET    | `/`              | Admin   | لیست درخواست‌ها + فیلتر       |
+| GET    | `/stats`         | Admin   | آمار تعداد بر اساس وضعیت      |
+| GET    | `/:id`           | Admin   | جزئیات کامل یک درخواست + فایل‌های مرجع |
+| PATCH  | `/:id`           | Admin   | تغییر status / notes / assignedTo |
+| DELETE | `/:id/files/:fileId` | Admin | حذف یک فایل مرجع از درخواست |
+
+بدنه‌ی `POST /api/projects` این فیلدها را می‌پذیرد:
+
+```json
+{
+  "name": "string",
+  "email": "string (یا phone الزامی)",
+  "phone": "string (یا email الزامی)",
+  "serviceId": "uuid (اختیاری)",
+  "projectType": "طراحی وبسایت | UI/UX طراحی | ...",
+  "subcategories": ["وبسایت شرکتی / سازمانی", "..."],
+  "budget": "۲ تا ۵ میلیون تومان | ...",
+  "timeline": "۱ تا ۲ ماه | ...",
+  "description": "string",
+  "attachments": [{ "filename": "uuid.png", "url": "...", "originalName": "...", "mimetype": "...", "size": 12345 }],
+  "source": "hero | services | banner | footer | order_form"
+}
+```
+
+#### 📎 آپلود فایل‌های مرجع `/api/upload/project-files`
+
+| Method | Path                 | Access            | توضیح                                       |
+|--------|----------------------|-------------------|---------------------------------------------|
+| POST   | `/project-files`     | Public (rate-limited) | آپلود تا ۵ فایل (تصویر/PDF/ZIP/PSD/AI/Figma/Sketch، حداکثر هرکدام طبق `MAX_FILE_SIZE`) |
+
+پاسخ شامل آرایه‌ای از `{ filename, originalName, url, mimetype, size }` است. خروجی هر فایل باید پیش از ارسال فرم نهایی، داخل آرایه‌ی `attachments` در `POST /api/projects` قرار بگیرد.
 
 ---
 

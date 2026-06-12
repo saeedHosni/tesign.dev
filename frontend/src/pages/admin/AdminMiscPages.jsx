@@ -1,83 +1,180 @@
-// src/pages/admin/AdminProjectsPage.jsx
-import { useState, useEffect, useCallback } from 'react';
+// src/pages/admin/AdminMiscPages.jsx
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AdminLayout, { AdminPageHeader } from './AdminLayout';
 import {
   Card, LoadingState, ErrorState, EmptyState, Badge,
-  Table, Tr, Td, Pagination, Modal, Select, Toast, FormField, Spinner,
+  Table, Tr, Td, Pagination, Modal, Select, Toast, FormField, Spinner, Input, Textarea,
 } from './AdminUI';
 import { adminApi } from '../../services/api';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AdminProjectsPage
+// ─────────────────────────────────────────────────────────────────────────────
+
+// وضعیت‌ها دقیقاً مطابق بک‌اند (ProjectLeadStatus در schema.prisma)
 const STATUS_MAP = {
-  NEW:         { label: 'جدید',           color: 'yellow' },
-  IN_REVIEW:   { label: 'در بررسی',       color: 'blue'   },
-  CONTACTED:   { label: 'تماس گرفته شد', color: 'purple' },
-  CLOSED:      { label: 'بسته شده',       color: 'gray'   },
+  NEW:         { label: 'جدید',             color: 'yellow' },
+  CONTACTED:   { label: 'تماس گرفته شد',   color: 'blue'   },
+  IN_PROGRESS: { label: 'در حال پیگیری',   color: 'purple' },
+  CONVERTED:   { label: 'تبدیل به پروژه',  color: 'green'  },
+  CLOSED:      { label: 'بسته شده',         color: 'gray'   },
 };
 
 const toDate = (d) => d ? new Date(d).toLocaleDateString('fa-IR') : '—';
 
-function ProjectDetailModal({ project, onClose, onStatusChange, saving }) {
+function ProjectDetailModal({ project, onClose, onSave, saving }) {
   const [status, setStatus] = useState(project.status || 'NEW');
+  const [notes,  setNotes]  = useState(project.notes  || '');
+
+  const isDirty = status !== project.status || notes !== (project.notes || '');
+
   if (!project) return null;
+
+  const baseUrl = (typeof window !== 'undefined' && import.meta?.env?.VITE_API_URL)
+    ? import.meta.env.VITE_API_URL.replace('/api', '')
+    : 'http://localhost:5000';
+
   return (
-    <Modal title="جزئیات درخواست" onClose={onClose} maxWidth="max-w-xl">
-      <div className="flex flex-col gap-4">
+    <Modal title="جزئیات درخواست پروژه" onClose={onClose} maxWidth="max-w-2xl">
+      <div className="flex flex-col gap-5">
+
+        {/* ردیف اول: اطلاعات تماس */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-bg-base rounded-xl p-3">
             <p className="text-text-muted text-xs mb-1">نام</p>
             <p className="text-text-primary text-sm font-medium">{project.name || '—'}</p>
           </div>
           <div className="bg-bg-base rounded-xl p-3">
-            <p className="text-text-muted text-xs mb-1">ایمیل</p>
-            <p className="text-text-primary text-sm font-medium" dir="ltr">{project.email || '—'}</p>
-          </div>
-          {project.phone && (
-            <div className="bg-bg-base rounded-xl p-3">
-              <p className="text-text-muted text-xs mb-1">تلفن</p>
-              <p className="text-text-primary text-sm" dir="ltr">{project.phone}</p>
-            </div>
-          )}
-          <div className="bg-bg-base rounded-xl p-3">
             <p className="text-text-muted text-xs mb-1">تاریخ ثبت</p>
             <p className="text-text-primary text-sm">{toDate(project.createdAt)}</p>
           </div>
+          {project.email && (
+            <div className="bg-bg-base rounded-xl p-3">
+              <p className="text-text-muted text-xs mb-1">ایمیل</p>
+              <p className="text-accent-yellow text-sm" dir="ltr">
+                <a href={`mailto:${project.email}`} className="hover:underline">{project.email}</a>
+              </p>
+            </div>
+          )}
+          {project.phone && (
+            <div className="bg-bg-base rounded-xl p-3">
+              <p className="text-text-muted text-xs mb-1">تلفن</p>
+              <p className="text-accent-yellow text-sm" dir="ltr">
+                <a href={`tel:${project.phone}`} className="hover:underline">{project.phone}</a>
+              </p>
+            </div>
+          )}
         </div>
 
-        {project.category && (
-          <div className="bg-bg-base rounded-xl p-3">
-            <p className="text-text-muted text-xs mb-1">نوع خدمت</p>
-            <p className="text-text-primary text-sm">{project.category}</p>
+        {/* نوع پروژه + زیردسته‌ها */}
+        {(project.projectType || (project.subcategories?.length > 0)) && (
+          <div className="bg-bg-base rounded-xl p-4 flex flex-col gap-2">
+            {project.projectType && (
+              <div>
+                <p className="text-text-muted text-xs mb-1">نوع پروژه</p>
+                <p className="text-text-primary text-sm font-semibold">{project.projectType}</p>
+              </div>
+            )}
+            {project.subcategories?.length > 0 && (
+              <div>
+                <p className="text-text-muted text-xs mb-2">زیردسته‌ها</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.subcategories.map((s, i) => (
+                    <span key={i} className="text-xs bg-white/8 border border-border-default text-text-secondary rounded-full px-2.5 py-0.5">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
+        {/* بودجه + زمانبندی */}
+        {(project.budget || project.timeline) && (
+          <div className="grid grid-cols-2 gap-3">
+            {project.budget && (
+              <div className="bg-bg-base rounded-xl p-3">
+                <p className="text-text-muted text-xs mb-1">بودجه تقریبی</p>
+                <p className="text-accent-yellow text-sm font-semibold">{project.budget}</p>
+              </div>
+            )}
+            {project.timeline && (
+              <div className="bg-bg-base rounded-xl p-3">
+                <p className="text-text-muted text-xs mb-1">زمانبندی</p>
+                <p className="text-text-primary text-sm">{project.timeline}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* توضیحات */}
         {project.description && (
-          <div className="bg-bg-base rounded-xl p-3">
-            <p className="text-text-muted text-xs mb-2">توضیحات</p>
-            <p className="text-text-secondary text-sm leading-relaxed">{project.description}</p>
+          <div className="bg-bg-base rounded-xl p-4">
+            <p className="text-text-muted text-xs mb-2">توضیحات پروژه</p>
+            <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-line">{project.description}</p>
           </div>
         )}
 
-        {project.budget && (
-          <div className="bg-bg-base rounded-xl p-3">
-            <p className="text-text-muted text-xs mb-1">بودجه</p>
-            <p className="text-text-primary text-sm">{project.budget}</p>
+        {/* فایل‌های پیوست */}
+        {project.files?.length > 0 && (
+          <div>
+            <p className="text-text-muted text-xs mb-2">فایل‌های مرجع ({project.files.length})</p>
+            <div className="flex flex-col gap-2">
+              {project.files.map((f) => {
+                const isImage = f.mimetype?.startsWith('image/');
+                const fileUrl = f.url || `${baseUrl}/uploads/project-files/${f.filename}`;
+                return (
+                  <a
+                    key={f.id}
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 bg-bg-base border border-border-default rounded-lg px-4 py-2.5 hover:border-accent-yellow/30 transition-colors no-underline"
+                  >
+                    <span className="text-base flex-shrink-0">{isImage ? '🖼️' : '📄'}</span>
+                    <span className="text-text-secondary text-sm truncate flex-1">{f.originalName || f.filename}</span>
+                    {f.size && (
+                      <span className="text-text-muted text-xs flex-shrink-0">
+                        {(f.size / 1024).toFixed(0)} KB
+                      </span>
+                    )}
+                    <span className="text-accent-yellow text-xs flex-shrink-0">↓ دانلود</span>
+                  </a>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        <div className="flex items-center gap-3 pt-2 border-t border-border-default">
+        {/* یادداشت ادمین */}
+        <div>
+          <FormField label="یادداشت داخلی" hint="فقط برای ادمین — کاربر نمی‌بیند">
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="پیگیری تلفنی، نتیجه جلسه، ..."
+              rows={3}
+            />
+          </FormField>
+        </div>
+
+        {/* تغییر وضعیت */}
+        <div className="flex items-center gap-3 pt-3 border-t border-border-default">
           <Select value={status} onChange={e => setStatus(e.target.value)} className="flex-1">
             {Object.entries(STATUS_MAP).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
           </Select>
           <button
-            onClick={() => onStatusChange(project.id, status)}
-            disabled={saving || status === project.status}
-            className="px-4 py-2 rounded-lg text-sm font-bold grad-bg text-[#111] border-none cursor-pointer disabled:opacity-60"
+            onClick={() => onSave(project.id, { status, notes })}
+            disabled={saving || !isDirty}
+            className="px-5 py-2 rounded-lg text-sm font-bold grad-bg text-[#111] border-none cursor-pointer disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
           >
-            {saving ? 'در حال ذخیره…' : 'بروزرسانی'}
+            {saving && <Spinner size={4} />}
+            ذخیره تغییرات
           </button>
         </div>
+
       </div>
     </Modal>
   );
@@ -88,65 +185,171 @@ export function AdminProjectsPage() {
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [status,   setStatus]   = useState('');
+  const [search,   setSearch]   = useState('');
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [selected, setSelected] = useState(null);
   const [saving,   setSaving]   = useState(false);
   const [toast,    setToast]    = useState(null);
+  const searchTimeout = useRef(null);
   const PER_PAGE = 15;
 
-  const showToast = (msg, type = 'success') => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3500); };
+  const showToast = (msg, type = 'success') => {
+    setToast({ message: msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await adminApi.getProjects({ page, limit: PER_PAGE, status: status || undefined });
-      setItems(res.data || res.leads || []);
-      setTotal(res.total || 0);
-    } catch (e) { setError(e.message); } finally { setLoading(false); }
-  }, [page, status]);
+      const res = await adminApi.getProjects({
+        page,
+        limit: PER_PAGE,
+        status:  status || undefined,
+        search:  search.trim() || undefined,
+      });
+      setItems(res.data || []);
+      // بک‌اند pagination.total برمی‌گردونه
+      setTotal(res.pagination?.total ?? res.total ?? 0);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, status, search]);
 
   useEffect(() => { load(); }, [load]);
 
-  const handleStatusChange = async (id, newStatus) => {
+  // جستجوی debounce شده
+  const handleSearchChange = (val) => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setSearch(val);
+      setPage(1);
+    }, 400);
+  };
+
+  const handleSave = async (id, updates) => {
     setSaving(true);
     try {
-      await adminApi.updateProject(id, { status: newStatus });
-      showToast('وضعیت بروزرسانی شد');
-      setSelected(prev => prev ? { ...prev, status: newStatus } : null);
-      load();
-    } catch (e) { showToast(e.message, 'error'); } finally { setSaving(false); }
+      await adminApi.updateProject(id, updates);
+      showToast('درخواست بروزرسانی شد');
+      // داده local رو هم آپدیت کن تا modal بلافاصله تغییر رو نشون بده
+      setSelected(prev => prev ? { ...prev, ...updates } : null);
+      setItems(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // باز کردن modal با دیتای کامل (شامل files)
+  const handleOpen = async (project) => {
+    // اول با دیتای لیست modal رو باز کن (سریع)
+    setSelected(project);
+    // بعد جزئیات کامل رو بگیر تا files هم نشون داده بشه
+    if (!project.files) {
+      try {
+        const res = await adminApi.getProjectById(project.id);
+        setSelected(res.data || res);
+      } catch {
+        // نادیده بگیر — دیتای لیست کافیه
+      }
+    }
   };
 
   return (
     <AdminLayout>
-      <AdminPageHeader title="درخواست‌های پروژه" description={`${total.toLocaleString('fa-IR')} درخواست`} />
+      <AdminPageHeader
+        title="درخواست‌های پروژه"
+        description={`${total.toLocaleString('fa-IR')} درخواست`}
+      />
+
       <Card>
-        <div className="mb-5 flex items-center gap-2 flex-wrap">
-          {['', ...Object.keys(STATUS_MAP)].map(s => (
-            <button key={s} onClick={() => { setStatus(s); setPage(1); }}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${status === s ? 'bg-accent-yellow/10 text-accent-yellow border-accent-yellow/30' : 'text-text-muted border-border-default hover:text-text-primary hover:border-white/20'}`}>
-              {s === '' ? 'همه' : STATUS_MAP[s].label}
-            </button>
-          ))}
+        {/* فیلترها + جستجو */}
+        <div className="mb-5 flex items-center gap-3 flex-wrap">
+          {/* فیلتر وضعیت */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {['', ...Object.keys(STATUS_MAP)].map(s => (
+              <button
+                key={s}
+                onClick={() => { setStatus(s); setPage(1); }}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                  status === s
+                    ? 'bg-accent-yellow/10 text-accent-yellow border-accent-yellow/30'
+                    : 'text-text-muted border-border-default hover:text-text-primary hover:border-white/20'
+                }`}
+              >
+                {s === '' ? 'همه' : STATUS_MAP[s].label}
+              </button>
+            ))}
+          </div>
+
+          {/* جستجو */}
+          <div className="mr-auto">
+            <input
+              defaultValue={search}
+              onChange={e => handleSearchChange(e.target.value)}
+              placeholder="جستجو در نام، ایمیل، تلفن..."
+              dir="rtl"
+              className="w-64 px-4 py-1.5 rounded-lg bg-bg-base border border-border-default text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent-yellow/60 transition-colors"
+            />
+          </div>
         </div>
+
         {loading && <LoadingState />}
         {error   && <ErrorState message={error} onRetry={load} />}
-        {!loading && !error && items.length === 0 && <EmptyState icon="📝" title="درخواستی یافت نشد" />}
+        {!loading && !error && items.length === 0 && (
+          <EmptyState icon="📝" title="درخواستی یافت نشد" description="هنوز فرم ثبت پروژه‌ای ارسال نشده." />
+        )}
+
         {!loading && !error && items.length > 0 && (
           <>
-            <Table columns={[{ label: 'نام' }, { label: 'ایمیل' }, { label: 'خدمت' }, { label: 'تاریخ' }, { label: 'وضعیت' }, { label: '', className: 'text-center' }]}>
+            <Table columns={[
+              { label: 'نام' },
+              { label: 'تماس' },
+              { label: 'نوع پروژه' },
+              { label: 'بودجه' },
+              { label: 'تاریخ' },
+              { label: 'وضعیت' },
+              { label: '', className: 'text-center' },
+            ]}>
               {items.map(p => {
                 const s = STATUS_MAP[p.status] || { label: p.status, color: 'gray' };
                 return (
                   <Tr key={p.id}>
-                    <Td><span className="text-text-primary text-sm">{p.name || '—'}</span></Td>
-                    <Td><span className="text-text-secondary text-xs" dir="ltr">{p.email}</span></Td>
-                    <Td><span className="text-text-secondary text-xs">{p.category || '—'}</span></Td>
-                    <Td><span className="text-text-muted text-xs">{toDate(p.createdAt)}</span></Td>
-                    <Td><Badge color={s.color}>{s.label}</Badge></Td>
+                    <Td>
+                      <span className="text-text-primary text-sm font-medium">{p.name || '—'}</span>
+                    </Td>
+                    <Td>
+                      <div className="flex flex-col gap-0.5">
+                        {p.email && <span className="text-text-secondary text-xs" dir="ltr">{p.email}</span>}
+                        {p.phone && <span className="text-text-muted text-xs" dir="ltr">{p.phone}</span>}
+                      </div>
+                    </Td>
+                    <Td>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-text-secondary text-xs">{p.projectType || '—'}</span>
+                        {p.subcategories?.length > 0 && (
+                          <span className="text-text-muted text-[10px]">{p.subcategories.join(' · ')}</span>
+                        )}
+                      </div>
+                    </Td>
+                    <Td>
+                      <span className="text-text-secondary text-xs">{p.budget || '—'}</span>
+                    </Td>
+                    <Td>
+                      <span className="text-text-muted text-xs">{toDate(p.createdAt)}</span>
+                    </Td>
+                    <Td>
+                      <Badge color={s.color}>{s.label}</Badge>
+                    </Td>
                     <Td className="text-center">
-                      <button onClick={() => setSelected(p)} className="text-xs text-text-secondary border border-border-default hover:text-text-primary hover:border-white/20 px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-transparent">
+                      <button
+                        onClick={() => handleOpen(p)}
+                        className="text-xs text-text-secondary border border-border-default hover:text-text-primary hover:border-white/20 px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-transparent"
+                      >
                         جزئیات
                       </button>
                     </Td>
@@ -158,14 +361,23 @@ export function AdminProjectsPage() {
           </>
         )}
       </Card>
-      {selected && <ProjectDetailModal project={selected} onClose={() => setSelected(null)} onStatusChange={handleStatusChange} saving={saving} />}
+
+      {selected && (
+        <ProjectDetailModal
+          project={selected}
+          onClose={() => setSelected(null)}
+          onSave={handleSave}
+          saving={saving}
+        />
+      )}
+
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
     </AdminLayout>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// src/pages/admin/AdminReviewsPage.jsx
+// AdminReviewsPage
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AdminReviewsPage() {
@@ -185,26 +397,20 @@ export function AdminReviewsPage() {
     try {
       const res = await adminApi.getReviews({ page, limit: PER_PAGE, approved: approved || undefined });
       setItems(res.data || res.reviews || []);
-      setTotal(res.total || 0);
+      setTotal(res.pagination?.total ?? res.total ?? 0);
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   }, [page, approved]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleApprove = async (id) => {
-    try {
-      await adminApi.approveReview(id);
-      showToast('نظر تأیید شد');
-      load();
-    } catch (e) { showToast(e.message, 'error'); }
+    try { await adminApi.approveReview(id); showToast('نظر تأیید شد'); load(); }
+    catch (e) { showToast(e.message, 'error'); }
   };
 
   const handleDelete = async (id) => {
-    try {
-      await adminApi.deleteReview(id);
-      showToast('نظر حذف شد');
-      load();
-    } catch (e) { showToast(e.message, 'error'); }
+    try { await adminApi.deleteReview(id); showToast('نظر حذف شد'); load(); }
+    catch (e) { showToast(e.message, 'error'); }
   };
 
   return (
@@ -259,7 +465,7 @@ export function AdminReviewsPage() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// src/pages/admin/AdminCouponsPage.jsx
+// AdminCouponsPage
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AdminCouponsPage() {
@@ -295,8 +501,8 @@ export function AdminCouponsPage() {
         code:           form.code.toUpperCase(),
         type:           form.type,
         value:          Number(form.value),
-        minOrderAmount: form.minOrder ? Number(form.minOrder) : null,
-        usageLimit:     form.maxUses  ? Number(form.maxUses)  : null,
+        minOrderAmount: form.minOrder  ? Number(form.minOrder) : null,
+        usageLimit:     form.maxUses   ? Number(form.maxUses)  : null,
         expiresAt:      form.expiresAt || null,
       });
       showToast('کوپن ایجاد شد');
@@ -307,14 +513,11 @@ export function AdminCouponsPage() {
 
   const handleDelete = async (id) => {
     setDeleting(id);
-    try {
-      await adminApi.deleteCoupon(id);
-      showToast('کوپن غیرفعال شد');
-      load();
-    } catch (e) { showToast(e.message, 'error'); } finally { setDeleting(null); }
+    try { await adminApi.deleteCoupon(id); showToast('کوپن غیرفعال شد'); load(); }
+    catch (e) { showToast(e.message, 'error'); } finally { setDeleting(null); }
   };
 
-  const toDate = (d) => d ? new Date(d).toLocaleDateString('fa-IR') : '—';
+  const toDateLocal = (d) => d ? new Date(d).toLocaleDateString('fa-IR') : '—';
 
   return (
     <AdminLayout>
@@ -338,15 +541,12 @@ export function AdminCouponsPage() {
                 <Td><Badge color="blue">{c.type === 'PERCENT' ? 'درصدی' : 'مقداری'}</Badge></Td>
                 <Td><span className="text-text-primary text-sm">{c.value}{c.type === 'PERCENT' ? '٪' : ' تومان'}</span></Td>
                 <Td><span className="text-text-secondary text-sm">{c.maxUses ? c.maxUses.toLocaleString('fa-IR') : 'نامحدود'}</span></Td>
-                <Td><span className="text-text-secondary text-xs">{toDate(c.expiresAt)}</span></Td>
+                <Td><span className="text-text-secondary text-xs">{toDateLocal(c.expiresAt)}</span></Td>
                 <Td><Badge color={c.isActive ? 'green' : 'gray'}>{c.isActive ? 'فعال' : 'غیرفعال'}</Badge></Td>
                 <Td className="text-center">
                   {c.isActive && (
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      disabled={deleting === c.id}
-                      className="text-xs text-red-400 border border-red-400/25 bg-red-400/5 hover:bg-red-400/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors disabled:opacity-50"
-                    >
+                    <button onClick={() => handleDelete(c.id)} disabled={deleting === c.id}
+                      className="text-xs text-red-400 border border-red-400/25 bg-red-400/5 hover:bg-red-400/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors disabled:opacity-50">
                       {deleting === c.id ? '…' : 'غیرفعال'}
                     </button>
                   )}
@@ -409,5 +609,4 @@ export function AdminCouponsPage() {
   );
 }
 
-// Re-export for default imports too
 export default AdminProjectsPage;

@@ -6,7 +6,7 @@ import ArrowIcon from '../components/ui/ArrowIcon';
 import {
   ORDER_CATEGORIES, BUDGET_OPTIONS, TIMELINE_OPTIONS, PRICE_ESTIMATES
 } from '../data/siteData';
-import { projectApi } from '../services/api';
+import { projectApi, uploadApi } from '../services/api';
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 function StepBar({ current, total }) {
@@ -173,30 +173,45 @@ export default function OrderPage() {
     if (!validateStep()) return;
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('phone', phone);
-      formData.append('email', email);
-      formData.append('companyName', companyName);
-      formData.append('projectCategory', selectedCategory);
-      formData.append('projectSubtypes', JSON.stringify(selectedSubtypes));
-      formData.append('budget', selectedBudget);
-      formData.append('timeline', selectedTimeline);
-      formData.append('description', description);
-      formData.append('source', 'order-page');
-      files.forEach(f => formData.append('attachments', f));
+      // ۱) اگر فایلی انتخاب شده، اول جدا آپلودش کن
+      let attachments = [];
+      if (files.length > 0) {
+        const uploadRes = await uploadApi.projectFiles(files);
+        attachments = uploadRes.data; // [{ filename, originalName, url, mimetype, size }, ...]
+      }
 
-      await projectApi.submit(formData);
+      // ۲) برچسب‌های قابل‌فهم (نه id) را برای ادمین بفرست
+      const categoryLabel  = ORDER_CATEGORIES.find(c => c.id === selectedCategory)?.label || selectedCategory;
+      const subtypeLabels  = selectedSubtypes.map(sid => {
+        const cat = ORDER_CATEGORIES.find(c => c.id === selectedCategory);
+        return cat?.subtypes.find(s => s.id === sid)?.label || sid;
+      }).filter(Boolean);
+      const budgetLabel   = BUDGET_OPTIONS.find(b => b.id === selectedBudget)?.label   || selectedBudget;
+      const timelineLabel = TIMELINE_OPTIONS.find(t => t.id === selectedTimeline)?.label || selectedTimeline;
+
+      // ۳) نام شرکت/برند را چون فیلد جدا در بک‌اند نیست، داخل توضیحات بگذار
+      const fullDescription = companyName.trim()
+        ? `شرکت/برند: ${companyName.trim()}\n\n${description}`
+        : description;
+
+      // ۴) phone خالی را نفرست تا regex بک‌اند خطا ندهد
+      const payload = {
+        name,
+        email:        email.trim()  || undefined,
+        phone:        phone.trim()  || undefined,
+        projectType:  categoryLabel,
+        subcategories: subtypeLabels,
+        budget:       budgetLabel,
+        timeline:     timelineLabel,
+        description:  fullDescription,
+        attachments,
+        source:       'order_form',
+      };
+
+      await projectApi.submit(payload);
       setStep(3);
     } catch (err) {
-      // If backend is down, still advance to success (graceful degradation)
-      const msg = err.message || '';
-      if (msg.includes('fetch') || msg.includes('Failed') || msg.includes('NetworkError') || msg.includes('یافت نشد')) {
-        // Backend not reachable — show success anyway, data is "noted"
-        setStep(3);
-      } else {
-        setErrors({ submit: msg || 'خطا در ارسال. لطفاً دوباره تلاش کنید.' });
-      }
+      setErrors({ submit: err.message || 'خطا در ارسال. لطفاً دوباره تلاش کنید.' });
     } finally {
       setLoading(false);
     }

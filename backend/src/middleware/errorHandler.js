@@ -72,6 +72,14 @@ export const errorHandler = (err, req, res, _next) => {
     });
   }
 
+  // BUG FIX: handle multer "too many files" error
+  if (err.code === 'LIMIT_FILE_COUNT') {
+    return res.status(400).json({
+      success: false,
+      message: 'تعداد فایل‌های ارسالی بیش از حد مجاز است.',
+    });
+  }
+
   // Validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({

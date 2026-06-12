@@ -24,7 +24,95 @@ function slugify(str) {
     .replace(/-+/g, '-');
 }
 
-function ProductForm({ initial, categories, onSave, onClose, saving }) {
+function ProductImagesManager({ product, showToast, onChange }) {
+  const [images, setImages]     = useState(product.images || []);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => { setImages(product.images || []); }, [product.id]);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const uploadRes = await adminApi.uploadImage(file);
+      const fileData = uploadRes.data || uploadRes.file || uploadRes;
+      const url = fileData.url;
+      const filename = fileData.filename;
+      if (!url) throw new Error('آپلود فایل ناموفق بود');
+
+      const addRes = await adminApi.addProductImage(product.id, { url, alt: product.name });
+      const newImage = addRes.data || addRes.image || { id: filename, url, alt: product.name, filename };
+
+      const updated = [...images, newImage];
+      setImages(updated);
+      onChange?.(updated);
+      showToast('تصویر اضافه شد');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteImage = async (img) => {
+    if (!confirm('آیا از حذف این تصویر مطمئنید؟')) return;
+    setDeletingId(img.id);
+    try {
+      await adminApi.deleteProductImage(product.id, img.id);
+
+      // اگر فایل آپلود شده روی سرور است، آن را هم حذف کن
+      const filename = img.filename || (img.url ? img.url.split('/').pop() : null);
+      if (filename) {
+        try { await adminApi.deleteFile(filename); } catch { /* فایل ممکن است قبلاً حذف شده باشد */ }
+      }
+
+      const updated = images.filter(i => i.id !== img.id);
+      setImages(updated);
+      onChange?.(updated);
+      showToast('تصویر حذف شد');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <FormField label="گالری تصاویر محصول" hint="فرمت‌های مجاز: jpeg, png, webp, gif, svg — حداکثر ۱۰ مگابایت">
+      <div className="flex flex-wrap gap-3">
+        {images.map(img => (
+          <div key={img.id} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border-default group">
+            <img src={img.url} alt={img.alt || ''} className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => handleDeleteImage(img)}
+              disabled={deletingId === img.id}
+              className="absolute inset-0 bg-black/60 text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer border-none disabled:opacity-100"
+            >
+              {deletingId === img.id ? <Spinner size={4} /> : 'حذف'}
+            </button>
+          </div>
+        ))}
+
+        <label className="w-20 h-20 rounded-lg border border-dashed border-border-default flex items-center justify-center cursor-pointer text-text-muted hover:text-accent-yellow hover:border-accent-yellow/40 transition-colors text-xs">
+          {uploading ? <Spinner size={4} /> : '+ افزودن'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+      </div>
+    </FormField>
+  );
+}
+
+function ProductForm({ initial, categories, onSave, onClose, saving, showToast }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -38,8 +126,9 @@ function ProductForm({ initial, categories, onSave, onClose, saving }) {
     if (!form.name.trim())  { alert('نام محصول الزامی است'); return; }
     if (!form.slug.trim())  { alert('اسلاگ الزامی است'); return; }
     if (!form.price)        { alert('قیمت الزامی است'); return; }
+    const { images, ...rest } = form;
     onSave({
-      ...form,
+      ...rest,
       price:        Number(form.price),
       comparePrice: form.comparePrice ? Number(form.comparePrice) : null,
       stock:        form.stock !== '' ? Number(form.stock) : null,
@@ -51,6 +140,10 @@ function ProductForm({ initial, categories, onSave, onClose, saving }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {initial?.id && (
+        <ProductImagesManager product={initial} showToast={showToast} onChange={(imgs) => set('images', imgs)} />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField label="نام محصول" required>
           <Input value={form.name} onChange={e => handleNameChange(e.target.value)} placeholder="قالب آماده کسب‌وکار پرو" />
@@ -355,6 +448,7 @@ export default function AdminProductsPage() {
             onSave={handleSave}
             onClose={() => { setShowForm(false); setEditItem(null); }}
             saving={saving}
+            showToast={showToast}
           />
         </Modal>
       )}

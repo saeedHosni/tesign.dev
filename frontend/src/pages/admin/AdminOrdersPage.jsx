@@ -4,6 +4,7 @@ import AdminLayout, { AdminPageHeader } from './AdminLayout';
 import {
   Card, LoadingState, ErrorState, EmptyState, Badge,
   Table, Tr, Td, Pagination, Modal, Toast, ConfirmDialog,
+  Select, Textarea, FormField, Spinner,
 } from './AdminUI';
 import { adminApi } from '../../services/api';
 
@@ -15,12 +16,31 @@ const STATUS_MAP = {
   REFUNDED:   { label: 'مسترد شده',         color: 'blue'   },
 };
 
+const ORDER_STATUS_MAP = {
+  PENDING:    { label: 'در انتظار' },
+  PROCESSING: { label: 'در حال پردازش' },
+  COMPLETED:  { label: 'تکمیل شده' },
+  CANCELLED:  { label: 'لغو شده' },
+  REFUNDED:   { label: 'مسترد شده' },
+};
+
 const toPrice = (n) => Number(n || 0).toLocaleString('fa-IR') + ' تومان';
 const toDate  = (d) => d ? new Date(d).toLocaleDateString('fa-IR') : '—';
 
-function OrderDetailModal({ order, onClose, onConfirm, confirming }) {
+function OrderDetailModal({ order, onClose, onConfirm, confirming, onSaveStatus, savingStatus }) {
+  const [status, setStatus] = useState('');
+  const [notes,  setNotes]  = useState('');
+
+  useEffect(() => {
+    if (order) {
+      setStatus(order.status || 'PENDING');
+      setNotes(order.notes || '');
+    }
+  }, [order]);
+
   if (!order) return null;
   const s = STATUS_MAP[order.paymentStatus] || { label: order.paymentStatus, color: 'gray' };
+  const isDirty = status !== (order.status || 'PENDING') || notes !== (order.notes || '');
   return (
     <Modal title={`سفارش ${order.orderNumber || order.id?.slice(0,8)}`} onClose={onClose} maxWidth="max-w-xl">
       <div className="flex flex-col gap-4">
@@ -72,6 +92,28 @@ function OrderDetailModal({ order, onClose, onConfirm, confirming }) {
           </div>
         </div>
 
+        {/* وضعیت سفارش + یادداشت ادمین */}
+        <div className="flex flex-col gap-3 pt-3 border-t border-border-default">
+          <FormField label="وضعیت سفارش">
+            <Select value={status} onChange={e => setStatus(e.target.value)}>
+              {Object.entries(ORDER_STATUS_MAP).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="یادداشت داخلی" hint="فقط برای ادمین — کاربر نمی‌بیند">
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="توضیحات داخلی سفارش…" rows={3} />
+          </FormField>
+          <button
+            onClick={() => onSaveStatus(order.id, { status, notes })}
+            disabled={savingStatus || !isDirty}
+            className="w-full py-2.5 rounded-lg text-sm font-bold grad-bg text-[#111] border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {savingStatus && <Spinner size={4} />}
+            ذخیره تغییرات
+          </button>
+        </div>
+
         {/* Confirm button */}
         {order.paymentStatus === 'PENDING' && (
           <button
@@ -96,6 +138,7 @@ export default function AdminOrdersPage() {
   const [error,     setError]     = useState(null);
   const [selected,  setSelected]  = useState(null);
   const [confirming,setConfirming]= useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
   const [toast,     setToast]     = useState(null);
 
   const PER_PAGE = 15;
@@ -131,6 +174,20 @@ export default function AdminOrdersPage() {
       showToast(e.message, 'error');
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleSaveStatus = async (id, body) => {
+    setSavingStatus(true);
+    try {
+      await adminApi.updateOrderStatus(id, body);
+      showToast('سفارش بروزرسانی شد');
+      setSelected(prev => prev ? { ...prev, ...body } : null);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...body } : o));
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSavingStatus(false);
     }
   };
 
@@ -191,7 +248,14 @@ export default function AdminOrdersPage() {
                     </Td>
                     <Td><span className="text-text-primary text-sm font-medium">{toPrice(o.finalAmount)}</span></Td>
                     <Td><span className="text-text-secondary text-xs">{toDate(o.createdAt)}</span></Td>
-                    <Td><Badge color={s.color}>{s.label}</Badge></Td>
+                    <Td>
+                      <div className="flex flex-col gap-1">
+                        <Badge color={s.color}>{s.label}</Badge>
+                        {o.status && o.status !== 'PENDING' && (
+                          <span className="text-text-muted text-[0.7rem]">{ORDER_STATUS_MAP[o.status]?.label || o.status}</span>
+                        )}
+                      </div>
+                    </Td>
                     <Td className="text-center">
                       <button
                         onClick={() => setSelected(o)}
@@ -214,6 +278,8 @@ export default function AdminOrdersPage() {
         onClose={() => setSelected(null)}
         onConfirm={handleConfirm}
         confirming={confirming}
+        onSaveStatus={handleSaveStatus}
+        savingStatus={savingStatus}
       />
 
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
