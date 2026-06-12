@@ -215,7 +215,12 @@ function OrderDetailModal({ orderId, onClose }) {
                   <p className="font-bold text-accent-yellow">{order.orderNumber}</p>
                   <p className="text-text-muted text-xs mt-0.5">{new Date(order.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
-                <StatusBadge status={order.paymentStatus} />
+                <div className="flex flex-col items-end gap-1.5">
+                  <StatusBadge status={order.paymentStatus} />
+                  {order.status && order.status !== 'PENDING' && (
+                    <StatusBadge status={order.status} />
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-text-muted text-xs mb-2">آیتم‌های سفارش</p>
@@ -305,7 +310,12 @@ function OrdersTab() {
                 <p className="font-bold text-text-primary text-sm">{order.orderNumber}</p>
                 <p className="text-text-muted text-xs mt-0.5">{new Date(order.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
-              <StatusBadge status={order.paymentStatus} />
+              <div className="flex flex-col items-end gap-1.5">
+                <StatusBadge status={order.paymentStatus} />
+                {order.status && order.status !== 'PENDING' && (
+                  <StatusBadge status={order.status} />
+                )}
+              </div>
             </div>
             {order.items?.length > 0 && (
               <div className="mt-3 flex flex-col gap-1">

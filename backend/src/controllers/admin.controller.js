@@ -246,11 +246,16 @@ export const getOrders = async (req, res, next) => {
 // PATCH /api/admin/orders/:id
 export const updateOrderStatus = async (req, res, next) => {
   try {
-    const { status, notes } = req.body;
+    const { status, paymentStatus, notes } = req.body;
 
-    const allowedStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
+    const allowedStatuses        = ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REFUNDED'];
+    const allowedPaymentStatuses = ['UNPAID', 'PAID', 'FAILED', 'REFUNDED'];
+
     if (status && !allowedStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: 'وضعیت سفارش نامعتبر است.' });
+    }
+    if (paymentStatus && !allowedPaymentStatuses.includes(paymentStatus)) {
+      return res.status(400).json({ success: false, message: 'وضعیت پرداخت نامعتبر است.' });
     }
 
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
@@ -259,8 +264,14 @@ export const updateOrderStatus = async (req, res, next) => {
     }
 
     const updates = {};
-    if (status !== undefined) updates.status = status;
-    if (notes  !== undefined) updates.notes  = notes;
+    if (status        !== undefined) updates.status        = status;
+    if (paymentStatus !== undefined) updates.paymentStatus = paymentStatus;
+    if (notes         !== undefined) updates.notes         = notes;
+
+    // If admin manually marks payment as PAID, record paidAt timestamp
+    if (paymentStatus === 'PAID' && !order.paidAt) {
+      updates.paidAt = new Date();
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ success: false, message: 'هیچ فیلدی برای بروزرسانی ارسال نشده.' });

@@ -1,11 +1,11 @@
 // src/pages/ShopPage.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SectionLabel from '../components/ui/SectionLabel';
 import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../context/CartContext';
-import { PRODUCT_CATEGORIES } from '../data/siteData';
+import { productApi } from '../services/api';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
 function navigate(path) {
@@ -107,12 +107,28 @@ function SkeletonCard() {
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [categories, setCategories] = useState([{ id: 'all', label: 'همه محصولات', slug: 'all' }]);
   const { products, loading } = useProducts({ limit: 20 });
   const { totalItems } = useCart();
   useScrollReveal();
 
+  // Fetch categories dynamically from API
+  useEffect(() => {
+    productApi.getCategories().then(res => {
+      const apiCats = (res.data || []).map(cat => ({
+        id: cat.slug,
+        label: cat.name,
+        slug: cat.slug,
+      }));
+      setCategories([{ id: 'all', label: 'همه محصولات', slug: 'all' }, ...apiCats]);
+    }).catch(() => {
+      // Fallback: keep default only
+    });
+  }, []);
+
   const filtered = products.filter(p => {
-    const matchCat    = activeCategory === 'all' || p.category === activeCategory;
+    const selectedCat = categories.find(c => c.id === activeCategory);
+    const matchCat = activeCategory === 'all' || p.category === selectedCat?.label;
     const matchSearch = !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.sub?.toLowerCase().includes(search.toLowerCase()) ||
@@ -154,7 +170,7 @@ export default function ShopPage() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
           <div className="flex flex-wrap gap-2">
-            {PRODUCT_CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
                 className={`px-4 py-2 rounded-full text-[0.82rem] font-semibold border transition-all duration-200 cursor-pointer
                   ${activeCategory === cat.id

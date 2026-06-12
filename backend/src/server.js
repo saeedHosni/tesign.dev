@@ -11,18 +11,19 @@ import prisma from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Routes
-import authRoutes       from './routes/auth.routes.js';
-import productRoutes    from './routes/product.routes.js';
-import serviceRoutes    from './routes/service.routes.js';
-import projectRoutes    from './routes/project.routes.js';
-import orderRoutes      from './routes/order.routes.js';
-import cartRoutes       from './routes/cart.routes.js';
-import reviewRoutes     from './routes/review.routes.js';
-import couponRoutes     from './routes/coupon.routes.js';
-import settingsRoutes   from './routes/settings.routes.js';
-import adminRoutes      from './routes/admin.routes.js';
-import uploadRoutes     from './routes/upload.routes.js';
-import dashboardRoutes  from './routes/dashboard.routes.js';
+import authRoutes            from './routes/auth.routes.js';
+import productRoutes         from './routes/product.routes.js';
+import serviceRoutes         from './routes/service.routes.js';
+import projectRoutes         from './routes/project.routes.js';
+import orderRoutes           from './routes/order.routes.js';
+import cartRoutes            from './routes/cart.routes.js';
+import reviewRoutes          from './routes/review.routes.js';
+import couponRoutes          from './routes/coupon.routes.js';
+import settingsRoutes        from './routes/settings.routes.js';
+import adminRoutes           from './routes/admin.routes.js';
+import uploadRoutes          from './routes/upload.routes.js';
+import dashboardRoutes       from './routes/dashboard.routes.js';
+import orderFormConfigRoutes from './routes/orderFormConfig.routes.js';
 
 const app = express();
 
@@ -41,7 +42,7 @@ app.use(cors({
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '2mb' })); // BUG FIX: reduced from 10mb — JSON bodies shouldn't be that large; file uploads use multipart
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
@@ -50,9 +51,8 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-// BUG FIX: rate limits were way too high (20000, 10000) — reduced to sensible values
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000,
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
@@ -66,7 +66,7 @@ const authLimiter = rateLimit({
 });
 
 app.use('/api/', globalLimiter);
-app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/login',    authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 // ─── Static files ─────────────────────────────────────────────────────────────
@@ -88,18 +88,19 @@ app.get('/health', async (_req, res) => {
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/orders',   orderRoutes);
-app.use('/api/cart',     cartRoutes);
-app.use('/api/reviews',  reviewRoutes);
-app.use('/api/coupons',  couponRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/admin',     adminRoutes);
-app.use('/api/upload',   uploadRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auth',         authRoutes);
+app.use('/api/products',     productRoutes);
+app.use('/api/services',     serviceRoutes);
+app.use('/api/projects',     projectRoutes);
+app.use('/api/orders',       orderRoutes);
+app.use('/api/cart',         cartRoutes);
+app.use('/api/reviews',      reviewRoutes);
+app.use('/api/coupons',      couponRoutes);
+app.use('/api/settings',     settingsRoutes);
+app.use('/api/admin',        adminRoutes);
+app.use('/api/upload',       uploadRoutes);
+app.use('/api/dashboard',    dashboardRoutes);
+app.use('/api/order-config', orderFormConfigRoutes); // public — گزینه‌های فعال فرم سفارش
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);
@@ -123,7 +124,6 @@ process.on('SIGTERM', async () => {
   });
 });
 
-// BUG FIX: handle SIGINT (Ctrl+C) for graceful dev shutdown
 process.on('SIGINT', async () => {
   console.log('SIGINT received. Closing server...');
   server.close(async () => {

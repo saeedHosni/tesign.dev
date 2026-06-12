@@ -408,3 +408,96 @@ model SiteStat {
 
   @@map("site_stats")
 }
+// ─── ORDER FORM CONFIG ────────────────────────────────────────────────────────
+// این مدل‌ها را به انتهای schema.prisma اضافه کنید
+
+// دسته‌بندی‌های اصلی نوع پروژه (مرحله ۱ فرم)
+model ProjectMainCategory {
+  id            String               @id @default(uuid())
+  key           String               @unique   // کلید یکتا برای ارجاع فرانت (مثل "web_design")
+  title         String
+  description   String?
+  icon          String?
+  sortOrder     Int                  @default(0)
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  subcategories ProjectSubcategory[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("project_main_categories")
+}
+
+// زیردسته‌های اختیاری (مثل لندینگ‌پیج، فروشگاهی، ...)
+model ProjectSubcategory {
+  id             String               @id @default(uuid())
+  label          String
+  mainCategoryId String?
+  mainCategory   ProjectMainCategory? @relation(fields: [mainCategoryId], references: [id], onDelete: SetNull)
+  sortOrder      Int                  @default(0)
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([mainCategoryId])
+  @@index([isActive])
+  @@map("project_subcategories")
+}
+
+// بازه‌های بودجه تقریبی
+model BudgetOption {
+  id        String               @id @default(uuid())
+  label     String               // نمایشی: "۲ تا ۵ میلیون تومان"
+  value     String               @unique   // کلید منحصربه‌فرد: "2m_5m"
+  icon      String?              // اموجی یا نام آیکون
+  sortOrder Int                  @default(0)
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  priceRules PriceEstimateRule[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("budget_options")
+}
+
+// بازه‌های زمانبندی مورد نظر
+model TimelineOption {
+  id        String               @id @default(uuid())
+  label     String               // نمایشی: "۲ تا ۳ ماه"
+  value     String               @unique   // کلید: "2m_3m"
+  sortOrder Int                  @default(0)
+  isActive  Boolean              @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  priceRules PriceEstimateRule[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("timeline_options")
+}
+
+// قوانین تخمین اولیه قیمت بر اساس ترکیب بودجه/زمانبندی
+// اگر هر دو null باشند → قانون پیش‌فرض کلی
+model PriceEstimateRule {
+  id               String          @id @default(uuid())
+  budgetOptionId   String?
+  budgetOption     BudgetOption?   @relation(fields: [budgetOptionId], references: [id], onDelete: SetNull)
+  timelineOptionId String?
+  timelineOption   TimelineOption? @relation(fields: [timelineOptionId], references: [id], onDelete: SetNull)
+  minAmount        Int             // حداقل تخمین (مثلاً ۸)
+  maxAmount        Int             // حداکثر تخمین (مثلاً ۳۰)
+  unit             String          @default("میلیون تومان")
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([budgetOptionId])
+  @@index([timelineOptionId])
+  @@index([isActive])
+  @@map("price_estimate_rules")
+}
