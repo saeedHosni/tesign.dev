@@ -139,18 +139,19 @@ export const refreshAccessToken = async (req, res, next) => {
       });
     }
 
-    // Rotate: delete old, create new
-    await prisma.refreshToken.delete({ where: { token: refreshToken } });
-
+    // ✅ FIX: Rotate با transaction — جلوگیری از race condition
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId);
 
-    await prisma.refreshToken.create({
-      data: {
-        token: newRefreshToken,
-        userId: decoded.userId,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
+    await prisma.$transaction([
+      prisma.refreshToken.delete({ where: { token: refreshToken } }),
+      prisma.refreshToken.create({
+        data: {
+          token: newRefreshToken,
+          userId: decoded.userId,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    ]);
 
     res.json({
       success: true,

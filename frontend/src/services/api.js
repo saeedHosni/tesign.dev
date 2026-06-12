@@ -70,13 +70,31 @@ async function request(endpoint, options = {}, retry = true) {
 }
 
 // ─── Upload request ────────────────────────────────────────────────────────────
-async function uploadRequest(endpoint, formData) {
+async function uploadRequest(endpoint, formData, retry = true) {
   const url = `${BASE_URL}${endpoint}`;
-  const headers = {};
   const token = localStorage.getItem('tesign_token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
   const res = await fetch(url, { method: 'POST', headers, body: formData });
   const data = await res.json();
+
+  // ✅ همون منطق refresh که تو request() داری
+  if (res.status === 401 && data?.code === 'TOKEN_EXPIRED' && retry) {
+    try {
+      if (!refreshPromise) {
+        refreshPromise = doRefresh().finally(() => { refreshPromise = null; });
+      }
+      await refreshPromise;
+      return uploadRequest(endpoint, formData, false);
+    } catch {
+      localStorage.removeItem('tesign_token');
+      localStorage.removeItem('tesign_refresh');
+      localStorage.removeItem('tesign_user');
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      throw new Error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+    }
+  }
+
   if (!res.ok) throw new Error(data.message || 'خطا در آپلود فایل');
   return data;
 }
@@ -148,10 +166,7 @@ export const settingsApi = {
 
 export const dashboardApi = {
   // خلاصه داشبورد
-  getSummary: () =>
-    request('/dashboard/summary'),
-
-  // پروفایل
+  getSummary: () => request('/dashboard/summary'),
   getProfile:  ()         => request('/dashboard/profile'),
   updateProfile: (body)   => request('/dashboard/profile',         { method: 'PATCH', body: JSON.stringify(body) }),
   changePassword: (body)  => request('/dashboard/change-password', { method: 'PATCH', body: JSON.stringify(body) }),
