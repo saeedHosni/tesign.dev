@@ -1,6 +1,4 @@
-# DigiTeam Backend API 🚀
-
-بک‌اند کامل سایت دیجی‌تیم — آژانس دیجیتال فارسی  
+بک‌اند کامل سایت تیزاین — آژانس دیجیتال فارسی  
 ساخته شده با **Node.js + Express + PostgreSQL + Prisma**
 
 ---
@@ -31,7 +29,7 @@ cp .env.example .env
 فایل `.env` را باز کنید و اطلاعات را تکمیل کنید:
 
 ```env
-DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/digiteam_db?schema=public"
+DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/tesign_db?schema=public"
 JWT_SECRET=your_super_secret_jwt_key_min_32_chars
 JWT_REFRESH_SECRET=your_super_secret_refresh_key
 ```
@@ -39,9 +37,7 @@ JWT_REFRESH_SECRET=your_super_secret_refresh_key
 ### ۳. ساخت دیتابیس
 
 ```bash
-# ساخت دیتابیس در PostgreSQL
 createdb digiteam_db
-
 # یا با psql:
 psql -U postgres -c "CREATE DATABASE digiteam_db;"
 ```
@@ -94,7 +90,15 @@ digiteam-backend/
 │   └── routes/                # تعریف مسیرها
 │       ├── auth.routes.js
 │       ├── product.routes.js
-│       └── ...
+│       ├── service.routes.js
+│       ├── project.routes.js
+│       ├── order.routes.js
+│       ├── cart.routes.js
+│       ├── review.routes.js
+│       ├── coupon.routes.js
+│       ├── settings.routes.js
+│       ├── admin.routes.js
+│       └── upload.routes.js
 └── uploads/                   # فایل‌های آپلودی
 ```
 
@@ -103,7 +107,7 @@ digiteam-backend/
 ## 🗄️ مدل‌های دیتابیس
 
 | جدول              | توضیح                                      |
-|-------------------|--------------------------------------------|
+|-------------------|---------------------------------------------|
 | `users`           | کاربران (ادمین، مدیر، مشتری)               |
 | `refresh_tokens`  | توکن‌های بازنشانی JWT                       |
 | `services`        | خدمات آژانس                                |
@@ -129,6 +133,7 @@ digiteam-backend/
 ## 🔌 API Endpoints
 
 ### 🔐 احراز هویت `/api/auth`
+
 | Method | Path               | Access  | توضیح                    |
 |--------|--------------------|---------|--------------------------|
 | POST   | `/register`        | Public  | ثبت‌نام                  |
@@ -139,34 +144,53 @@ digiteam-backend/
 | PATCH  | `/me`              | User    | بروزرسانی پروفایل        |
 | PATCH  | `/change-password` | User    | تغییر رمز عبور           |
 
+---
+
 ### 📦 محصولات `/api/products`
-| Method | Path               | Access  | توضیح                    |
-|--------|--------------------|---------|--------------------------|
-| GET    | `/`                | Public  | لیست + فیلتر + صفحه‌بندی |
-| GET    | `/featured`        | Public  | محصولات ویژه             |
-| GET    | `/categories`      | Public  | دسته‌بندی‌ها             |
-| GET    | `/:slug`           | Public  | جزئیات محصول             |
-| POST   | `/`                | Admin   | ایجاد محصول              |
-| PUT    | `/:id`             | Admin   | ویرایش محصول             |
-| DELETE | `/:id`             | Admin   | حذف (soft)               |
+
+| Method | Path          | Access  | توضیح                                               |
+|--------|---------------|---------|-----------------------------------------------------|
+| GET    | `/`           | Public  | لیست + فیلتر + صفحه‌بندی (`?admin=1` برای ادمین)   |
+| GET    | `/featured`   | Public  | محصولات ویژه (حداکثر ۸ تا)                         |
+| GET    | `/categories` | Public  | دسته‌بندی‌های سطح اول با تعداد محصول               |
+| GET    | `/:slug`      | Public  | جزئیات محصول + تصاویر + نظرات تأییدشده             |
+| POST   | `/`           | Admin   | ایجاد محصول (slug خودکار ساخته می‌شود)             |
+| PUT    | `/:id`        | Admin   | ویرایش محصول (slug فقط در صورت تغییر name تغییر می‌کند) |
+| DELETE | `/:id`        | Admin   | غیرفعال کردن محصول (soft delete)                   |
+
+**پارامترهای فیلتر GET `/`:**
+```
+?page=1&limit=12&category=slug&search=text&sort=price&order=desc
+&featured=true&minPrice=10000&maxPrice=500000&admin=1
+```
+
+---
 
 ### 🛠️ خدمات `/api/services`
-| Method | Path     | Access  | توضیح        |
-|--------|----------|---------|--------------|
-| GET    | `/`      | Public  | همه خدمات    |
-| GET    | `/:slug` | Public  | یک سرویس     |
-| POST   | `/`      | Admin   | ایجاد        |
-| PUT    | `/:id`   | Admin   | ویرایش       |
+
+| Method | Path     | Access  | توضیح                                        |
+|--------|----------|---------|----------------------------------------------|
+| GET    | `/`      | Public  | خدمات فعال (`?admin=1` برای همه خدمات)       |
+| GET    | `/:slug` | Public  | جزئیات یک سرویس                              |
+| POST   | `/`      | Admin   | ایجاد سرویس + features                       |
+| PUT    | `/:id`   | Admin   | ویرایش سرویس (features کاملاً جایگزین می‌شوند)|
+| DELETE | `/:id`   | Admin   | غیرفعال کردن سرویس (soft delete)             |
+
+---
 
 ### 📝 ثبت پروژه `/api/projects`
-| Method | Path       | Access  | توضیح               |
-|--------|------------|---------|---------------------|
-| POST   | `/`        | Public  | ارسال فرم تماس      |
-| GET    | `/`        | Admin   | لیست درخواست‌ها     |
-| GET    | `/stats`   | Admin   | آمار درخواست‌ها     |
-| PATCH  | `/:id`     | Admin   | تغییر وضعیت         |
+
+| Method | Path     | Access  | توضیح                          |
+|--------|----------|---------|--------------------------------|
+| POST   | `/`      | Public  | ارسال فرم تماس (auth اختیاری) |
+| GET    | `/`      | Admin   | لیست درخواست‌ها + فیلتر       |
+| GET    | `/stats` | Admin   | آمار تعداد بر اساس وضعیت      |
+| PATCH  | `/:id`   | Admin   | تغییر status / notes / assignedTo |
+
+---
 
 ### 🛒 سبد خرید `/api/cart`
+
 | Method | Path            | Access | توضیح              |
 |--------|-----------------|--------|--------------------|
 | GET    | `/`             | User   | مشاهده سبد          |
@@ -175,79 +199,181 @@ digiteam-backend/
 | DELETE | `/item/:itemId` | User   | حذف از سبد          |
 | DELETE | `/clear`        | User   | خالی کردن سبد       |
 
+---
+
 ### 💳 سفارشات `/api/orders`
-| Method | Path            | Access | توضیح                |
-|--------|-----------------|--------|----------------------|
-| POST   | `/`             | User   | ثبت سفارش از سبد     |
-| GET    | `/my`           | User   | سفارشات من           |
-| GET    | `/:id`          | User   | جزئیات سفارش         |
-| GET    | `/admin/all`    | Admin  | همه سفارشات          |
-| POST   | `/:id/confirm`  | Admin  | تأیید پرداخت          |
+
+| Method | Path            | Access | توضیح                                                    |
+|--------|-----------------|--------|----------------------------------------------------------|
+| POST   | `/`             | User   | ثبت سفارش از سبد (با اعتبارسنجی کوپن و موجودی محصول)   |
+| GET    | `/my`           | User   | سفارشات کاربر جاری                                       |
+| GET    | `/:id`          | User   | جزئیات سفارش (ادمین می‌تواند هر سفارشی را ببیند)        |
+| GET    | `/admin/all`    | Admin  | همه سفارشات + فیلتر status/paymentStatus/search          |
+| POST   | `/:id/confirm`  | Admin  | تأیید پرداخت + ایجاد لینک دانلود + بروزرسانی موجودی    |
+
+---
 
 ### ⭐ نظرات `/api/reviews`
-| Method | Path                | Access | توضیح                     |
-|--------|---------------------|--------|---------------------------|
-| POST   | `/`                 | User   | ارسال نظر (فقط خریداران) |
-| GET    | `/:productId`       | Public | نظرات یک محصول            |
-| PATCH  | `/:id/approve`      | Admin  | تأیید نظر                 |
+
+| Method | Path            | Access | توضیح                                      |
+|--------|-----------------|--------|--------------------------------------------|
+| POST   | `/`             | User   | ارسال نظر (فقط خریداران محصول با پرداخت موفق) |
+| GET    | `/:productId`   | Public | نظرات تأییدشده یک محصول                   |
+| PATCH  | `/:id/approve`  | Admin  | تأیید نظر + recalculate امتیاز محصول      |
+| PATCH  | `/:id/reject`   | Admin  | رد نظر + recalculate امتیاز محصول         |
+
+---
 
 ### 🏷️ کوپن `/api/coupons`
-| Method | Path          | Access  | توضیح           |
-|--------|---------------|---------|-----------------|
-| POST   | `/validate`   | User    | بررسی کد تخفیف  |
-| GET    | `/`           | Admin   | لیست کوپن‌ها    |
-| POST   | `/`           | Admin   | ایجاد کوپن      |
-| DELETE | `/:id`        | Admin   | غیرفعال کردن    |
+
+| Method | Path        | Access  | توضیح                                      |
+|--------|-------------|---------|-------------------------------------------|
+| POST   | `/validate` | User    | بررسی کد تخفیف + محاسبه مقدار تخفیف     |
+| GET    | `/`         | Admin   | لیست کوپن‌ها با صفحه‌بندی (`?isActive=true`) |
+| POST   | `/`         | Admin   | ایجاد کوپن (PERCENTAGE یا FIXED)          |
+| PATCH  | `/:id`      | Admin   | ویرایش کوپن                               |
+| DELETE | `/:id`      | Admin   | غیرفعال کردن کوپن (soft delete)           |
+
+---
 
 ### ⚙️ تنظیمات `/api/settings`
-| Method | Path          | Access  | توضیح                          |
-|--------|---------------|---------|--------------------------------|
-| GET    | `/public`     | Public  | همه دیتای صفحه اول یکجا        |
-| GET    | `/dashboard`  | Admin   | آمار داشبورد                   |
-| GET    | `/`           | Admin   | همه تنظیمات                    |
-| PUT    | `/`           | Admin   | بروزرسانی تنظیمات              |
-| PUT    | `/ticker`     | Admin   | بروزرسانی متن‌های مارکی        |
-| PUT    | `/stats`      | Admin   | بروزرسانی آمار Hero            |
+
+| Method | Path         | Access  | توضیح                                             |
+|--------|--------------|---------|---------------------------------------------------|
+| GET    | `/public`    | Public  | همه دیتای صفحه اول یکجا (stats + ticker + services + featured) |
+| GET    | `/dashboard` | Admin   | آمار داشبورد (کاربران، سفارشات، درآمد این ماه و ماه قبل، رشد) |
+| GET    | `/`          | Admin   | همه تنظیمات key-value                             |
+| PUT    | `/`          | Admin   | بروزرسانی دسته‌ای تنظیمات                        |
+| PUT    | `/ticker`    | Admin   | بازنویسی کامل آیتم‌های مارکی (transaction)        |
+| PUT    | `/stats`     | Admin   | بروزرسانی آمارهای Hero                            |
+
+**پاسخ `/dashboard` شامل:**
+```json
+{
+  "totalUsers": 0,
+  "newUsersThisMonth": 0,
+  "totalOrders": 0,
+  "ordersThisMonth": 0,
+  "totalRevenue": 0,
+  "revenueThisMonth": 0,
+  "revenueLastMonth": 0,
+  "revenueGrowth": 12,
+  "totalProducts": 0,
+  "recentOrders": [],
+  "newLeads": 0,
+  "pendingReviews": 0
+}
+```
+
+---
 
 ### 👑 ادمین `/api/admin`
-| Method | Path             | Access       | توضیح             |
-|--------|------------------|--------------|-------------------|
-| GET    | `/users`         | Admin        | لیست کاربران      |
-| PATCH  | `/users/:id`     | Admin        | ویرایش کاربر      |
-| POST   | `/users`         | SuperAdmin   | ایجاد ادمین جدید  |
-| GET    | `/analytics`     | Admin        | نمودار درآمد      |
+
+همه endpoint های این بخش نیاز به `protect + isAdmin` دارند.  
+موارد مشخص‌شده با **SuperAdmin** فقط برای نقش `ADMIN` مجاز هستند (نه `MANAGER`).
+
+#### کاربران
+
+| Method | Path         | Access     | توضیح                                                   |
+|--------|--------------|------------|----------------------------------------------------------|
+| GET    | `/users`     | Admin      | لیست کاربران + فیلتر role/search + صفحه‌بندی            |
+| PATCH  | `/users/:id` | Admin      | ویرایش name/role/isActive/isVerified (نمی‌توان روی خود اعمال کرد) |
+| DELETE | `/users/:id` | SuperAdmin | غیرفعال کردن کاربر (soft delete، نمی‌توان روی خود اعمال کرد) |
+| POST   | `/users`     | SuperAdmin | ایجاد ادمین یا مدیر جدید (با بررسی تکراری بودن email)  |
+
+#### آنالیتیکس
+
+| Method | Path         | Access | توضیح                                                    |
+|--------|--------------|--------|----------------------------------------------------------|
+| GET    | `/analytics` | Admin  | نمودار درآمد روزانه + مجموع + پرفروش‌ترین محصولات      |
+
+**پارامتر:** `?period=30` (تعداد روز، پیش‌فرض ۳۰)
+
+#### سفارشات (ادمین)
+
+| Method | Path          | Access | توضیح                                                       |
+|--------|---------------|--------|-------------------------------------------------------------|
+| GET    | `/orders`     | Admin  | لیست سفارشات + فیلتر status/paymentStatus/search + صفحه‌بندی |
+| PATCH  | `/orders/:id` | Admin  | تغییر status سفارش و/یا notes                              |
+
+#### نظرات (ادمین)
+
+| Method | Path           | Access | توضیح                                                   |
+|--------|----------------|--------|---------------------------------------------------------|
+| GET    | `/reviews`     | Admin  | لیست نظرات + فیلتر `?approved=false` + صفحه‌بندی       |
+| DELETE | `/reviews/:id` | Admin  | حذف نظر + recalculate امتیاز محصول                     |
+
+#### کوپن‌ها (ادمین)
+
+| Method | Path           | Access | توضیح        |
+|--------|----------------|--------|--------------|
+| PATCH  | `/coupons/:id` | Admin  | ویرایش کوپن  |
+
+> **نکته:** ایجاد، لیست و حذف کوپن از طریق `/api/coupons` انجام می‌شود.
+
+#### دسته‌بندی‌ها
+
+| Method | Path               | Access     | توضیح                                              |
+|--------|--------------------|------------|---------------------------------------------------|
+| GET    | `/categories`      | Admin      | لیست همه دسته‌بندی‌ها + تعداد محصول + زیردسته     |
+| POST   | `/categories`      | Admin      | ایجاد دسته‌بندی (name + slug الزامی)              |
+| PATCH  | `/categories/:id`  | Admin      | ویرایش دسته‌بندی                                   |
+| DELETE | `/categories/:id`  | SuperAdmin | حذف دسته‌بندی (در صورت داشتن محصول یا زیردسته خطا می‌دهد) |
+
+#### تصاویر محصول
+
+| Method | Path                              | Access | توضیح              |
+|--------|-----------------------------------|--------|--------------------|
+| POST   | `/products/:id/images`            | Admin  | افزودن تصویر به محصول |
+| DELETE | `/products/:id/images/:imageId`   | Admin  | حذف تصویر محصول    |
+
+---
 
 ### 📤 آپلود `/api/upload`
-| Method | Path            | Access | توضیح          |
-|--------|-----------------|--------|----------------|
-| POST   | `/image`        | Admin  | آپلود تصویر    |
-| DELETE | `/:filename`    | Admin  | حذف فایل       |
+
+| Method | Path         | Access | توضیح                              |
+|--------|--------------|--------|------------------------------------|
+| POST   | `/image`     | Admin  | آپلود تصویر (jpeg/png/webp/gif/svg) |
+| DELETE | `/:filename` | Admin  | حذف فایل آپلودشده                  |
+
+**محدودیت:** حداکثر ۱۰MB (قابل تغییر از طریق `MAX_FILE_SIZE` در `.env`)
+
+---
+
+## 🔒 سطوح دسترسی
+
+| نقش        | توضیح                                                                 |
+|------------|----------------------------------------------------------------------|
+| `CUSTOMER` | کاربر عادی — خرید، سبد، نظر، پروفایل                               |
+| `MANAGER`  | مدیر — دسترسی به تمام API های Admin (به‌جز موارد SuperAdmin)        |
+| `ADMIN`    | سوپرادمین — دسترسی کامل شامل ایجاد کاربر ادمین، حذف‌های حساس       |
 
 ---
 
 ## 🔒 نکات امنیتی
 
-- JWT با Refresh Token Rotation
-- Rate Limiting (کلی و برای login/register)
+- JWT با Refresh Token Rotation (توکن قدیمی پس از refresh حذف می‌شود)
+- Rate Limiting: کلی ۲۰۰۰۰ درخواست / ۱۵ دقیقه، login/register ۱۰۰۰۰ / ۱۵ دقیقه
 - Helmet.js برای HTTP headers امن
-- اعتبارسنجی کامل ورودی‌ها با express-validator
-- Soft delete برای محصولات
-- فقط خریداران می‌توانند نظر بگذارند
+- اعتبارسنجی ورودی‌ها با express-validator
+- Soft delete برای محصولات، کوپن‌ها، سرویس‌ها و کاربران
+- فقط خریداران با پرداخت موفق می‌توانند نظر بگذارند
 - نظرات نیاز به تأیید ادمین دارند
+- ادمین نمی‌تواند حساب یا نقش خودش را تغییر دهد
+- stock فقط برای محصولات فیزیکی کاهش می‌یابد (stock = -1 یعنی دیجیتال/نامحدود)
 
 ---
 
 ## 🔄 اتصال به فرانت‌اند
 
-در فرانت‌اند React خود، این endpoint را در Load سایت فراخوانی کنید تا همه دیتا یکجا بارگذاری شود:
+بارگذاری دیتای صفحه اول:
 
 ```javascript
-// src/hooks/useSiteData.js
 const response = await fetch(`${API_URL}/api/settings/public`);
 const { stats, ticker, services, featuredProducts } = await response.json();
 ```
 
-برای فرم ثبت پروژه (ProjectBanner):
+فرم ثبت پروژه:
 
 ```javascript
 const response = await fetch(`${API_URL}/api/projects`, {

@@ -34,6 +34,15 @@ export const createOrder = async (req, res, next) => {
       });
     }
 
+    // Validate all products are active
+    const inactiveItem = cart.items.find(item => !item.product.isActive);
+    if (inactiveItem) {
+      return res.status(400).json({
+        success: false,
+        message: `محصول "${inactiveItem.product.name}" دیگر موجود نیست.`,
+      });
+    }
+
     // Calculate totals
     let totalAmount = 0;
     let discountAmount = 0;
@@ -49,42 +58,64 @@ export const createOrder = async (req, res, next) => {
       };
     });
 
-    // Apply coupon
+    // Apply coupon — FIXED: was using two separate OR keys (second overwrites first)
     let appliedCoupon = null;
     if (couponCode) {
       const coupon = await prisma.coupon.findFirst({
         where: {
           code: couponCode.toUpperCase(),
           isActive: true,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          OR: [{ usageLimit: null }, { usageCount: { lt: prisma.coupon.fields.usageLimit } }],
+          AND: [
+            {
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            {
+              OR: [{ usageLimit: null }, { usageCount: { lt: prisma.coupon.fields?.usageLimit } }],
+            },
+          ],
         },
       });
 
-      if (!coupon) {
+      // Re-fetch and validate manually to avoid Prisma field reference issues
+      const couponRaw = await prisma.coupon.findFirst({
+        where: {
+          code: couponCode.toUpperCase(),
+          isActive: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      });
+
+      if (!couponRaw) {
         return res.status(400).json({
           success: false,
           message: 'کد تخفیف معتبر نیست یا منقضی شده.',
         });
       }
 
-      if (coupon.minOrderAmount && totalAmount < coupon.minOrderAmount) {
+      if (couponRaw.usageLimit !== null && couponRaw.usageCount >= couponRaw.usageLimit) {
         return res.status(400).json({
           success: false,
-          message: `حداقل مبلغ سفارش برای این کد تخفیف ${coupon.minOrderAmount.toLocaleString('fa')} تومان است.`,
+          message: 'ظرفیت این کد تخفیف تکمیل شده است.',
         });
       }
 
-      if (coupon.type === 'PERCENTAGE') {
-        discountAmount = Math.round(totalAmount * coupon.value / 100);
-        if (coupon.maxDiscount) {
-          discountAmount = Math.min(discountAmount, coupon.maxDiscount);
-        }
-      } else {
-        discountAmount = Math.min(coupon.value, totalAmount);
+      if (couponRaw.minOrderAmount && totalAmount < couponRaw.minOrderAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `حداقل مبلغ سفارش برای این کد تخفیف ${couponRaw.minOrderAmount.toLocaleString('fa')} ریال است.`,
+        });
       }
 
-      appliedCoupon = coupon;
+      if (couponRaw.type === 'PERCENTAGE') {
+        discountAmount = Math.round(totalAmount * couponRaw.value / 100);
+        if (couponRaw.maxDiscount) {
+          discountAmount = Math.min(discountAmount, couponRaw.maxDiscount);
+        }
+      } else {
+        discountAmount = Math.min(couponRaw.value, totalAmount);
+      }
+
+      appliedCoupon = couponRaw;
     }
 
     const finalAmount = totalAmount - discountAmount;
@@ -134,7 +165,7 @@ export const createOrder = async (req, res, next) => {
   }
 };
 
-// GET /api/orders  — user's own orders
+// GET /api/orders/my  — user's own orders
 export const getMyOrders = async (req, res, next) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -194,7 +225,7 @@ export const getOrder = async (req, res, next) => {
   }
 };
 
-// POST /api/orders/:id/confirm-payment  [Webhook / Admin]
+// POST /api/orders/:id/confirm  [Admin]
 export const confirmPayment = async (req, res, next) => {
   try {
     const { paymentRef, paymentMethod } = req.body;
@@ -239,11 +270,18 @@ export const confirmPayment = async (req, res, next) => {
         await tx.orderDownload.createMany({ data: downloads });
       }
 
-      // Update product sales count
+      // Update product sales count — only for products with finite stock
       for (const item of order.items) {
+        const productUpdate = { totalSales: { increment: item.quantity } };
+
+        // Only decrement stock if it's finite (not -1 = unlimited digital)
+        if (item.product.stock !== -1) {
+          productUpdate.stock = { decrement: item.quantity };
+        }
+
         await tx.product.update({
           where: { id: item.productId },
-          data: { totalSales: { increment: item.quantity } },
+          data: productUpdate,
         });
       }
     });
@@ -254,19 +292,20 @@ export const confirmPayment = async (req, res, next) => {
   }
 };
 
-// GET /api/orders/admin/all  [Admin]
+// GET /api/orders/admin/all  [Admin] — kept for backward compatibility
 export const getAllOrders = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status, paymentStatus, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     const where = {};
 
-    if (status) where.status = status;
+    if (status)        where.status        = status;
     if (paymentStatus) where.paymentStatus = paymentStatus;
     if (search) {
       where.OR = [
         { orderNumber: { contains: search, mode: 'insensitive' } },
         { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { name:  { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -278,7 +317,7 @@ export const getAllOrders = async (req, res, next) => {
         orderBy: { createdAt: 'desc' },
         include: {
           user: { select: { id: true, name: true, email: true } },
-          items: { select: { id: true, quantity: true, unitPrice: true } },
+          items: { select: { id: true, quantity: true, unitPrice: true, totalPrice: true } },
         },
       }),
       prisma.order.count({ where }),

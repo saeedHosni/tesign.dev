@@ -8,10 +8,10 @@ import { protect, isAdmin } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-router.post('/',             protect, createOrder);
-router.get('/my',            protect, getMyOrders);
-router.get('/admin/all',     protect, isAdmin, getAllOrders);
-router.get('/:id',           protect, getOrder);
-router.post('/:id/confirm',  protect, isAdmin, confirmPayment);
+router.post('/',              protect, createOrder);
+router.get('/my',             protect, getMyOrders);
+router.get('/admin/all',      protect, isAdmin, getAllOrders);
+router.get('/:id',            protect, getOrder);
+router.post('/:id/confirm',   protect, isAdmin, confirmPayment);
 
 export default router;

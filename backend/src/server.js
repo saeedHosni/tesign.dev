@@ -51,7 +51,7 @@ if (process.env.NODE_ENV === 'development') {
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 200,
+  max: 20000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'درخواست‌های زیادی دریافت شد. لطفاً بعداً تلاش کنید.' },

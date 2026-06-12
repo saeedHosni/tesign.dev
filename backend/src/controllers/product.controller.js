@@ -15,11 +15,14 @@ export const getProducts = async (req, res, next) => {
       featured,
       minPrice,
       maxPrice,
+      admin,
     } = req.query;
 
     const skip = (Number(page) - 1) * Number(limit);
+    const where = {};
 
-    const where = { isActive: true };
+    // Only show active products to non-admin requests
+    if (!admin) where.isActive = true;
 
     if (category) {
       where.category = { slug: category };
@@ -27,10 +30,10 @@ export const getProducts = async (req, res, next) => {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { subtitle: { contains: search, mode: 'insensitive' } },
+        { name:        { contains: search, mode: 'insensitive' } },
+        { subtitle:    { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { tags: { has: search } },
+        { tags:        { has: search } },
       ];
     }
 
@@ -44,7 +47,7 @@ export const getProducts = async (req, res, next) => {
       if (maxPrice) where.price.lte = Number(maxPrice);
     }
 
-    const validSortFields = ['sortOrder', 'price', 'totalSales', 'rating', 'createdAt'];
+    const validSortFields = ['sortOrder', 'price', 'totalSales', 'rating', 'createdAt', 'name'];
     const sortField = validSortFields.includes(sort) ? sort : 'sortOrder';
 
     const [products, total] = await Promise.all([
@@ -55,8 +58,8 @@ export const getProducts = async (req, res, next) => {
         orderBy: { [sortField]: order === 'desc' ? 'desc' : 'asc' },
         include: {
           category: { select: { id: true, name: true, slug: true } },
-          images: { orderBy: { sortOrder: 'asc' }, take: 1 },
-          _count: { select: { reviews: true } },
+          images:   { orderBy: { sortOrder: 'asc' }, take: 1 },
+          _count:   { select: { reviews: true } },
         },
       }),
       prisma.product.count({ where }),
@@ -77,124 +80,6 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
-// GET /api/products/:slug
-export const getProduct = async (req, res, next) => {
-  try {
-    const product = await prisma.product.findFirst({
-      where: { slug: req.params.slug, isActive: true },
-      include: {
-        category: true,
-        images: { orderBy: { sortOrder: 'asc' } },
-        reviews: {
-          where: { isApproved: true },
-          include: {
-            user: { select: { id: true, name: true, avatarUrl: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
-        _count: { select: { reviews: true } },
-      },
-    });
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'محصول یافت نشد.',
-      });
-    }
-
-    res.json({ success: true, data: product });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// POST /api/products  [Admin]
-export const createProduct = async (req, res, next) => {
-  try {
-    const {
-      name, subtitle, description, icon, categoryId,
-      price, comparePrice, badge, isFeatured, stock,
-      downloadUrl, tags, metadata, sortOrder,
-    } = req.body;
-
-    const baseSlug = slugify(name, { locale: 'fa', lower: true, strict: true });
-    let slug = baseSlug;
-    let counter = 1;
-    while (await prisma.product.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter++}`;
-    }
-
-    const product = await prisma.product.create({
-      data: {
-        slug,
-        name,
-        subtitle,
-        description,
-        icon,
-        categoryId,
-        price: Number(price),
-        comparePrice: comparePrice ? Number(comparePrice) : null,
-        badge,
-        isFeatured: Boolean(isFeatured),
-        stock: stock !== undefined ? Number(stock) : -1,
-        downloadUrl,
-        tags: tags || [],
-        metadata,
-        sortOrder: sortOrder ? Number(sortOrder) : 0,
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'محصول ایجاد شد.',
-      data: product,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// PUT /api/products/:id  [Admin]
-export const updateProduct = async (req, res, next) => {
-  try {
-    const updates = { ...req.body };
-    if (updates.price) updates.price = Number(updates.price);
-    if (updates.comparePrice) updates.comparePrice = Number(updates.comparePrice);
-    if (updates.stock !== undefined) updates.stock = Number(updates.stock);
-    if (updates.isFeatured !== undefined) updates.isFeatured = Boolean(updates.isFeatured);
-
-    // Regenerate slug if name changed
-    if (updates.name) {
-      updates.slug = slugify(updates.name, { locale: 'fa', lower: true, strict: true });
-    }
-
-    const product = await prisma.product.update({
-      where: { id: req.params.id },
-      data: updates,
-    });
-
-    res.json({ success: true, message: 'محصول بروز شد.', data: product });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// DELETE /api/products/:id  [Admin]
-export const deleteProduct = async (req, res, next) => {
-  try {
-    await prisma.product.update({
-      where: { id: req.params.id },
-      data: { isActive: false },
-    });
-
-    res.json({ success: true, message: 'محصول حذف شد.' });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // GET /api/products/featured
 export const getFeaturedProducts = async (req, res, next) => {
   try {
@@ -204,7 +89,7 @@ export const getFeaturedProducts = async (req, res, next) => {
       take: 8,
       include: {
         category: { select: { id: true, name: true, slug: true } },
-        images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+        images:   { orderBy: { sortOrder: 'asc' }, take: 1 },
       },
     });
 
@@ -227,6 +112,175 @@ export const getCategories = async (req, res, next) => {
     });
 
     res.json({ success: true, data: categories });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/products/:slug
+export const getProduct = async (req, res, next) => {
+  try {
+    const product = await prisma.product.findFirst({
+      where: { slug: req.params.slug, isActive: true },
+      include: {
+        category: true,
+        images:   { orderBy: { sortOrder: 'asc' } },
+        reviews: {
+          where:   { isApproved: true },
+          include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+        _count: { select: { reviews: true } },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
+    }
+
+    res.json({ success: true, data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Helper: generate a unique slug
+const generateUniqueSlug = async (name, excludeId = null) => {
+  const baseSlug = slugify(name, { locale: 'fa', lower: true, strict: true }) || `product-${Date.now()}`;
+  let slug = baseSlug;
+  let counter = 1;
+
+  while (true) {
+    const existing = await prisma.product.findUnique({ where: { slug } });
+    if (!existing || existing.id === excludeId) break;
+    slug = `${baseSlug}-${counter++}`;
+  }
+
+  return slug;
+};
+
+// POST /api/products  [Admin]
+export const createProduct = async (req, res, next) => {
+  try {
+    const {
+      name, subtitle, description, icon, categoryId,
+      price, comparePrice, badge, isFeatured, isActive,
+      stock, downloadUrl, tags, metadata, sortOrder,
+    } = req.body;
+
+    if (!name || !categoryId || price === undefined) {
+      return res.status(400).json({ success: false, message: 'نام، دسته‌بندی و قیمت الزامی است.' });
+    }
+
+    // Validate category exists
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'دسته‌بندی یافت نشد.' });
+    }
+
+    const slug = await generateUniqueSlug(name);
+
+    const product = await prisma.product.create({
+      data: {
+        slug,
+        name,
+        subtitle:     subtitle     || null,
+        description:  description  || null,
+        icon:         icon         || null,
+        categoryId,
+        price:        Number(price),
+        comparePrice: comparePrice ? Number(comparePrice) : null,
+        badge:        badge        || null,
+        isFeatured:   Boolean(isFeatured),
+        isActive:     isActive !== undefined ? Boolean(isActive) : true,
+        stock:        stock !== undefined ? Number(stock) : -1,
+        downloadUrl:  downloadUrl  || null,
+        tags:         tags || [],
+        metadata:     metadata     || null,
+        sortOrder:    sortOrder ? Number(sortOrder) : 0,
+      },
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'محصول ایجاد شد.', data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/products/:id  [Admin]
+export const updateProduct = async (req, res, next) => {
+  try {
+    const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
+    }
+
+    const {
+      name, subtitle, description, icon, categoryId,
+      price, comparePrice, badge, isFeatured, isActive,
+      stock, downloadUrl, tags, metadata, sortOrder,
+    } = req.body;
+
+    const updates = {};
+
+    if (name        !== undefined) updates.name        = name;
+    if (subtitle    !== undefined) updates.subtitle    = subtitle;
+    if (description !== undefined) updates.description = description;
+    if (icon        !== undefined) updates.icon        = icon;
+    if (categoryId  !== undefined) updates.categoryId  = categoryId;
+    if (price       !== undefined) updates.price       = Number(price);
+    if (comparePrice !== undefined) updates.comparePrice = comparePrice ? Number(comparePrice) : null;
+    if (badge       !== undefined) updates.badge       = badge;
+    if (isFeatured  !== undefined) updates.isFeatured  = Boolean(isFeatured);
+    if (isActive    !== undefined) updates.isActive    = Boolean(isActive);
+    if (stock       !== undefined) updates.stock       = Number(stock);
+    if (downloadUrl !== undefined) updates.downloadUrl = downloadUrl;
+    if (tags        !== undefined) updates.tags        = tags;
+    if (metadata    !== undefined) updates.metadata    = metadata;
+    if (sortOrder   !== undefined) updates.sortOrder   = Number(sortOrder);
+
+    // Only regenerate slug if name actually changed
+    if (name && name !== existing.name) {
+      updates.slug = await generateUniqueSlug(name, req.params.id);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'هیچ فیلدی برای بروزرسانی ارسال نشده.' });
+    }
+
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: updates,
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        images:   { orderBy: { sortOrder: 'asc' } },
+      },
+    });
+
+    res.json({ success: true, message: 'محصول بروز شد.', data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/products/:id  [Admin]  — soft delete
+export const deleteProduct = async (req, res, next) => {
+  try {
+    const existing = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
+    }
+
+    await prisma.product.update({
+      where: { id: req.params.id },
+      data: { isActive: false },
+    });
+
+    res.json({ success: true, message: 'محصول غیرفعال شد.' });
   } catch (error) {
     next(error);
   }

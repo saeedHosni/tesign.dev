@@ -30,11 +30,13 @@ async function apiFetch(path, opts = {}) {
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
 const STATUS_MAP = {
-  PENDING:    { label: 'در انتظار تأیید', cls: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20'  },
-  CONFIRMED:  { label: 'تأیید شده',       cls: 'text-green-400   bg-green-400/10   border-green-400/20'   },
-  PROCESSING: { label: 'در حال پردازش',   cls: 'text-blue-400    bg-blue-400/10    border-blue-400/20'    },
-  COMPLETED:  { label: 'تکمیل شده',       cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' },
-  CANCELLED:  { label: 'لغو شده',         cls: 'text-red-400     bg-red-400/10     border-red-400/20'     },
+  PENDING:    { label: 'در انتظار تأیید',  cls: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20'  },
+  PAID:       { label: 'پرداخت شده',        cls: 'text-green-400   bg-green-400/10   border-green-400/20'   },
+  CONFIRMED:  { label: 'تأیید شده',         cls: 'text-green-400   bg-green-400/10   border-green-400/20'   },
+  PROCESSING: { label: 'در حال پردازش',    cls: 'text-blue-400    bg-blue-400/10    border-blue-400/20'    },
+  COMPLETED:  { label: 'تکمیل شده',         cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' },
+  FAILED:     { label: 'ناموفق',             cls: 'text-red-400     bg-red-400/10     border-red-400/20'     },
+  CANCELLED:  { label: 'لغو شده',           cls: 'text-red-400     bg-red-400/10     border-red-400/20'     },
 };
 
 function StatusBadge({ status }) {
@@ -58,7 +60,7 @@ function Card({ children, className = '' }) {
 
 // ── Sidebar Tab Button ────────────────────────────────────────────────────────
 
-function Tab({ active, onClick, icon, label }) {
+function Tab({ active, onClick, icon, label, badge }) {
   return (
     <button
       onClick={onClick}
@@ -72,7 +74,12 @@ function Tab({ active, onClick, icon, label }) {
       `}
     >
       <span className="text-base">{icon}</span>
-      {label}
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/25">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -85,16 +92,114 @@ function Spinner({ size = 5 }) {
   );
 }
 
+// ── Order Detail Modal ────────────────────────────────────────────────────────
+
+function OrderDetailModal({ orderId, onClose }) {
+  const [order, setOrder]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr]         = useState('');
+
+  useEffect(() => {
+    apiFetch(`/orders/${orderId}`)
+      .then(res => setOrder(res.order || res))
+      .catch(e => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, [orderId]);
+
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-bg-surface border border-border-default rounded-2xl shadow-[0_16px_64px_rgba(0,0,0,0.5)] animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-default sticky top-0 bg-bg-surface z-10">
+          <h3 className="font-bold text-text-primary">جزئیات سفارش</h3>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary bg-transparent border-none cursor-pointer text-xl leading-none">×</button>
+        </div>
+        <div className="p-6">
+          {loading && (
+            <div className="flex items-center justify-center gap-3 h-32 text-text-muted text-sm">
+              <Spinner /> در حال بارگذاری…
+            </div>
+          )}
+          {err && <p className="text-center text-red-400 py-8 text-sm">{err}</p>}
+          {order && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <p className="font-bold text-accent-yellow">{order.orderNumber}</p>
+                  <p className="text-text-muted text-xs mt-0.5">
+                    {new Date(order.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <StatusBadge status={order.paymentStatus || order.status} />
+              </div>
+
+              {/* Items */}
+              <div>
+                <p className="text-text-muted text-xs mb-2">آیتم‌های سفارش</p>
+                <div className="flex flex-col gap-2">
+                  {(order.items || []).map((item, i) => (
+                    <div key={i} className="flex items-center justify-between bg-bg-base rounded-lg px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{item.product?.icon || '📦'}</span>
+                        <p className="text-text-primary text-sm">{item.product?.name || item.name || '—'}</p>
+                        <span className="text-text-muted text-xs">× {item.quantity}</span>
+                      </div>
+                      <span className="text-text-secondary text-sm">
+                        {(Number(item.price) * item.quantity).toLocaleString('fa-IR')} تومان
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Downloads */}
+              {order.downloads?.length > 0 && (
+                <div>
+                  <p className="text-text-muted text-xs mb-2">لینک‌های دانلود</p>
+                  <div className="flex flex-col gap-2">
+                    {order.downloads.map((dl, i) => (
+                      <a
+                        key={i}
+                        href={dl.downloadUrl || dl.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 bg-accent-yellow/5 border border-accent-yellow/20 rounded-lg px-3 py-2.5 text-accent-yellow text-sm hover:bg-accent-yellow/10 transition-colors"
+                      >
+                        <span>⬇</span>
+                        <span className="flex-1">{dl.product?.name || dl.productName || `فایل ${i + 1}`}</span>
+                        <span className="text-xs opacity-60">دانلود</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between items-center pt-3 border-t border-border-default">
+                <span className="text-text-muted text-sm">مبلغ نهایی</span>
+                <span className="font-bold text-accent-yellow">
+                  {Number(order.finalAmount || order.totalAmount || 0).toLocaleString('fa-IR')} تومان
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Orders Tab ────────────────────────────────────────────────────────────────
 
 function OrdersTab() {
-  const [orders,  setOrders]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err,     setErr]     = useState('');
+  const [orders,    setOrders]    = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [err,       setErr]       = useState('');
+  const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
     apiFetch('/orders/my')
-      .then(res => setOrders(res.orders || res))
+      .then(res => setOrders(res.orders || res.data || res))
       .catch(e  => setErr(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -120,40 +225,138 @@ function OrdersTab() {
   );
 
   return (
+    <>
+      <div className="flex flex-col gap-4">
+        {orders.map(order => (
+          <div
+            key={order.id}
+            className="border border-border-default rounded-xl p-4 hover:border-accent-yellow/20 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="font-bold text-text-primary text-sm">{order.orderNumber}</p>
+                <p className="text-text-muted text-xs mt-0.5">
+                  {new Date(order.createdAt).toLocaleDateString('fa-IR', {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                  })}
+                </p>
+              </div>
+              <StatusBadge status={order.paymentStatus || order.status} />
+            </div>
+
+            {order.items?.length > 0 && (
+              <div className="mt-3 flex flex-col gap-1.5">
+                {order.items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between text-xs text-text-secondary">
+                    <span>{item.product?.name || item.name}</span>
+                    <span className="text-text-muted">× {item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 pt-3 border-t border-border-default flex items-center justify-between">
+              <span className="text-xs text-text-muted">مجموع سفارش</span>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-accent-yellow text-sm">
+                  {Number(order.finalAmount || order.totalAmount || 0).toLocaleString('fa-IR')} تومان
+                </span>
+                <button
+                  onClick={() => setSelectedId(order.id)}
+                  className="text-xs text-text-secondary border border-border-default hover:border-accent-yellow/30 hover:text-accent-yellow px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-transparent"
+                >
+                  جزئیات
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedId && (
+        <OrderDetailModal orderId={selectedId} onClose={() => setSelectedId(null)} />
+      )}
+    </>
+  );
+}
+
+// ── Downloads Tab ─────────────────────────────────────────────────────────────
+
+function DownloadsTab() {
+  const [orders,  setOrders]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err,     setErr]     = useState('');
+
+  useEffect(() => {
+    apiFetch('/orders/my')
+      .then(res => {
+        const all = res.orders || res.data || res;
+        // Only paid orders with downloads
+        setOrders(all.filter(o =>
+          (o.paymentStatus === 'PAID' || o.status === 'PAID' || o.status === 'COMPLETED') &&
+          o.downloads?.length > 0
+        ));
+      })
+      .catch(e  => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center gap-3 h-32 text-text-muted text-sm">
+      <Spinner /> در حال بارگذاری…
+    </div>
+  );
+
+  if (err) return <p className="text-center text-red-400 py-8 text-sm">{err}</p>;
+
+  if (!orders.length) return (
+    <div className="text-center py-12">
+      <div className="text-4xl mb-3">📥</div>
+      <p className="text-text-primary font-bold mb-2">دانلودی موجود نیست</p>
+      <p className="text-text-muted text-sm mb-5">
+        پس از تأیید پرداخت، لینک دانلود محصولات دیجیتال اینجا نمایش داده می‌شود.
+      </p>
+      <Button variant="outline" onClick={() => goTo('/shop')}>
+        رفتن به فروشگاه
+      </Button>
+    </div>
+  );
+
+  return (
     <div className="flex flex-col gap-4">
       {orders.map(order => (
-        <div
-          key={order.id}
-          className="border border-border-default rounded-xl p-4 hover:border-accent-yellow/20 transition-colors"
-        >
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <p className="font-bold text-text-primary text-sm">{order.orderNumber}</p>
-              <p className="text-text-muted text-xs mt-0.5">
-                {new Date(order.createdAt).toLocaleDateString('fa-IR', {
-                  year: 'numeric', month: 'long', day: 'numeric',
-                })}
-              </p>
-            </div>
-            <StatusBadge status={order.status} />
-          </div>
-
-          {order.items?.length > 0 && (
-            <div className="mt-3 flex flex-col gap-1.5">
-              {order.items.map(item => (
-                <div key={item.id} className="flex items-center justify-between text-xs text-text-secondary">
-                  <span>{item.product?.name || item.name}</span>
-                  <span className="text-text-muted">× {item.quantity}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3 pt-3 border-t border-border-default flex items-center justify-between">
-            <span className="text-xs text-text-muted">مجموع سفارش</span>
-            <span className="font-bold text-accent-yellow text-sm">
-              {Number(order.totalAmount).toLocaleString('fa-IR')} تومان
+        <div key={order.id} className="border border-border-default rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-bold text-text-primary text-sm">{order.orderNumber}</p>
+            <span className="text-text-muted text-xs">
+              {new Date(order.createdAt).toLocaleDateString('fa-IR')}
             </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {(order.downloads || []).map((dl, i) => (
+              <a
+                key={i}
+                href={dl.downloadUrl || dl.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 bg-accent-yellow/5 border border-accent-yellow/20 rounded-lg px-4 py-3 text-accent-yellow hover:bg-accent-yellow/10 transition-colors group"
+              >
+                <span className="text-xl">⬇️</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary group-hover:text-accent-yellow transition-colors truncate">
+                    {dl.product?.name || dl.productName || `فایل دانلودی ${i + 1}`}
+                  </p>
+                  {dl.expiresAt && (
+                    <p className="text-xs text-text-muted mt-0.5">
+                      انقضا: {new Date(dl.expiresAt).toLocaleDateString('fa-IR')}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-accent-yellow/15 border border-accent-yellow/25">
+                  دانلود
+                </span>
+              </a>
+            ))}
           </div>
         </div>
       ))}
@@ -292,7 +495,7 @@ function PasswordTab() {
   );
 }
 
-// ── Redirect Guard — نمایش می‌دن که وارد بشی ────────────────────────────────
+// ── Redirect Guard ────────────────────────────────────────────────────────────
 
 function LoginPrompt() {
   return (
@@ -314,9 +517,10 @@ function LoginPrompt() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'orders',   icon: '📦', label: 'سفارشات من' },
-  { id: 'profile',  icon: '👤', label: 'اطلاعات پروفایل' },
-  { id: 'password', icon: '🔒', label: 'تغییر رمز عبور' },
+  { id: 'orders',    icon: '📦', label: 'سفارشات من' },
+  { id: 'downloads', icon: '📥', label: 'دانلودها' },
+  { id: 'profile',   icon: '👤', label: 'اطلاعات پروفایل' },
+  { id: 'password',  icon: '🔒', label: 'تغییر رمز عبور' },
 ];
 
 export default function DashboardPage() {
@@ -328,7 +532,6 @@ export default function DashboardPage() {
     goTo('/');
   };
 
-  // ── در حال بررسی session ──────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center gap-3 text-text-muted">
@@ -338,13 +541,10 @@ export default function DashboardPage() {
     );
   }
 
-  // ── لاگین نشده → نمایش پیام به جای redirect ──────────────────────────────
-  // (redirect واقعی در AuthContext انجام می‌شه اگه token معتبر نبود)
   if (!isLoggedIn) {
     return <LoginPrompt />;
   }
 
-  // ── داشبورد اصلی ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen pt-28 pb-20 px-4">
       <div className="max-w-[1100px] mx-auto">
@@ -410,9 +610,10 @@ export default function DashboardPage() {
                 {TABS.find(t => t.id === tab)?.label}
               </h2>
 
-              {tab === 'orders'   && <OrdersTab />}
-              {tab === 'profile'  && <ProfileTab />}
-              {tab === 'password' && <PasswordTab />}
+              {tab === 'orders'    && <OrdersTab />}
+              {tab === 'downloads' && <DownloadsTab />}
+              {tab === 'profile'   && <ProfileTab />}
+              {tab === 'password'  && <PasswordTab />}
             </Card>
           </main>
         </div>
@@ -420,3 +621,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
