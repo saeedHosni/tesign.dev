@@ -104,7 +104,7 @@ function UserMenu({ user, onLogout }) {
           </button>
 
           {/* پنل ادمین — فقط برای ادمین */}
-          {(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') && (
+          {(user.role === 'ADMIN' || user?.role === 'MANAGER') && (
             <button
               onClick={() => goTo('/admin')}
               className="

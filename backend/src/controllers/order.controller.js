@@ -43,6 +43,16 @@ export const createOrder = async (req, res, next) => {
       });
     }
 
+    // BUG FIX: Check stock for all items before creating order
+    for (const item of cart.items) {
+      if (item.product.stock !== -1 && item.product.stock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `موجودی محصول "${item.product.name}" کافی نیست. موجودی فعلی: ${item.product.stock}`,
+        });
+      }
+    }
+
     // Calculate totals
     let totalAmount = 0;
     let discountAmount = 0;
@@ -58,25 +68,9 @@ export const createOrder = async (req, res, next) => {
       };
     });
 
-    // Apply coupon — FIXED: was using two separate OR keys (second overwrites first)
+    // BUG FIX: Cleaned up coupon validation (removed duplicate double-query logic)
     let appliedCoupon = null;
     if (couponCode) {
-      const coupon = await prisma.coupon.findFirst({
-        where: {
-          code: couponCode.toUpperCase(),
-          isActive: true,
-          AND: [
-            {
-              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-            },
-            {
-              OR: [{ usageLimit: null }, { usageCount: { lt: prisma.coupon.fields?.usageLimit } }],
-            },
-          ],
-        },
-      });
-
-      // Re-fetch and validate manually to avoid Prisma field reference issues
       const couponRaw = await prisma.coupon.findFirst({
         where: {
           code: couponCode.toUpperCase(),
@@ -328,6 +322,48 @@ export const getAllOrders = async (req, res, next) => {
       data: orders,
       pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/orders/download/:token  — download file via token
+export const downloadByToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    const download = await prisma.orderDownload.findUnique({
+      where: { token },
+      include: { order: { select: { userId: true, paymentStatus: true } } },
+    });
+
+    if (!download) {
+      return res.status(404).json({ success: false, message: 'لینک دانلود یافت نشد.' });
+    }
+
+    // Check expiry
+    if (download.expiresAt < new Date()) {
+      return res.status(410).json({ success: false, message: 'لینک دانلود منقضی شده است.' });
+    }
+
+    // Check download limit
+    if (download.downloadCount >= download.maxDownloads) {
+      return res.status(403).json({ success: false, message: 'تعداد دفعات مجاز دانلود تمام شده است.' });
+    }
+
+    // Check ownership — logged-in user must own the order
+    if (req.user && req.user.id !== download.order.userId) {
+      return res.status(403).json({ success: false, message: 'دسترسی غیرمجاز.' });
+    }
+
+    // Increment download count
+    await prisma.orderDownload.update({
+      where: { token },
+      data: { downloadCount: { increment: 1 } },
+    });
+
+    // Redirect to actual download URL
+    res.redirect(download.downloadUrl);
   } catch (error) {
     next(error);
   }

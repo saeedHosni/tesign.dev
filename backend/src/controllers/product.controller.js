@@ -18,7 +18,10 @@ export const getProducts = async (req, res, next) => {
       admin,
     } = req.query;
 
-    const skip = (Number(page) - 1) * Number(limit);
+    // BUG FIX: validate page and limit are positive numbers
+    const pageNum  = Math.max(1, parseInt(page)  || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 12)); // cap at 100
+    const skip = (pageNum - 1) * limitNum;
     const where = {};
 
     // Only show active products to non-admin requests
@@ -54,7 +57,7 @@ export const getProducts = async (req, res, next) => {
       prisma.product.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limitNum,
         orderBy: { [sortField]: order === 'desc' ? 'desc' : 'asc' },
         include: {
           category: { select: { id: true, name: true, slug: true } },
@@ -69,10 +72,10 @@ export const getProducts = async (req, res, next) => {
       success: true,
       data: products,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / Number(limit)),
+        totalPages: Math.ceil(total / limitNum),
       },
     });
   } catch (error) {
@@ -173,6 +176,16 @@ export const createProduct = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'نام، دسته‌بندی و قیمت الزامی است.' });
     }
 
+    // BUG FIX: validate price is non-negative
+    if (Number(price) < 0) {
+      return res.status(400).json({ success: false, message: 'قیمت نمی‌تواند منفی باشد.' });
+    }
+
+    // BUG FIX: validate comparePrice > price when both provided
+    if (comparePrice !== undefined && comparePrice !== null && Number(comparePrice) <= Number(price)) {
+      return res.status(400).json({ success: false, message: 'قیمت اصلی باید بیشتر از قیمت فروش باشد.' });
+    }
+
     // Validate category exists
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
@@ -224,6 +237,14 @@ export const updateProduct = async (req, res, next) => {
       price, comparePrice, badge, isFeatured, isActive,
       stock, downloadUrl, tags, metadata, sortOrder,
     } = req.body;
+
+    // BUG FIX: validate comparePrice logic
+    const finalPrice        = price        !== undefined ? Number(price)        : existing.price;
+    const finalComparePrice = comparePrice !== undefined ? (comparePrice ? Number(comparePrice) : null) : existing.comparePrice;
+
+    if (finalComparePrice !== null && finalComparePrice <= finalPrice) {
+      return res.status(400).json({ success: false, message: 'قیمت اصلی باید بیشتر از قیمت فروش باشد.' });
+    }
 
     const updates = {};
 
@@ -281,6 +302,38 @@ export const deleteProduct = async (req, res, next) => {
     });
 
     res.json({ success: true, message: 'محصول غیرفعال شد.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/products/:id/related  — related products in same category
+export const getRelatedProducts = async (req, res, next) => {
+  try {
+    const product = await prisma.product.findFirst({
+      where: { slug: req.params.slug, isActive: true },
+      select: { id: true, categoryId: true },
+    });
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
+    }
+
+    const related = await prisma.product.findMany({
+      where: {
+        categoryId: product.categoryId,
+        isActive: true,
+        id: { not: product.id },
+      },
+      take: 4,
+      orderBy: { totalSales: 'desc' },
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        images:   { orderBy: { sortOrder: 'asc' }, take: 1 },
+      },
+    });
+
+    res.json({ success: true, data: related });
   } catch (error) {
     next(error);
   }

@@ -4,9 +4,9 @@ import { authApi } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const TOKEN_KEY    = 'tesign_token';
-const REFRESH_KEY  = 'tesign_refresh';
-const USER_KEY     = 'tesign_user';
+const TOKEN_KEY   = 'tesign_token';
+const REFRESH_KEY = 'tesign_refresh';
+const USER_KEY    = 'tesign_user';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,10 +34,20 @@ function loadUser() {
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(() => loadUser());
-  const [loading, setLoading] = useState(true); // checking session on mount
+  const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
-  // On mount: verify stored token is still valid
+  // گوش دادن به رویداد «session منقضی شد» که از api.js fire می‌شود
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      clearSession();
+    };
+    window.addEventListener('auth:session-expired', onExpired);
+    return () => window.removeEventListener('auth:session-expired', onExpired);
+  }, []);
+
+  // تأیید اعتبار توکن ذخیره‌شده هنگام mount
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
@@ -51,7 +61,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem(USER_KEY, JSON.stringify(u));
       })
       .catch(() => {
-        // Token expired/invalid — wipe session
+        // refresh هم شکست خورد (api.js قبلاً تلاش کرد) — session پاک شود
         clearSession();
         setUser(null);
       })
@@ -86,7 +96,7 @@ export function AuthProvider({ children }) {
     try {
       await authApi.logout();
     } catch {
-      // silent — clear client side regardless
+      // silent — در هر صورت client را پاک کن
     }
     clearSession();
     setUser(null);
@@ -102,7 +112,10 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  // ── role checks ───────────────────────────────────────────────────────────
+  // بک‌اند از ADMIN و MANAGER استفاده می‌کند؛ SUPER_ADMIN وجود ندارد
+  const isAdmin   = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const isSuperAdmin = user?.role === 'ADMIN';
 
   return (
     <AuthContext.Provider value={{
@@ -112,6 +125,7 @@ export function AuthProvider({ children }) {
       setError,
       isLoggedIn: !!user,
       isAdmin,
+      isSuperAdmin,
       login,
       register,
       logout,

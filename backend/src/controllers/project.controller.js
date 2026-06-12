@@ -1,6 +1,9 @@
 // src/controllers/project.controller.js
 import prisma from '../config/db.js';
 
+// Simple email format check
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 // POST /api/projects  — public form submission
 export const submitProjectLead = async (req, res, next) => {
   try {
@@ -21,6 +24,19 @@ export const submitProjectLead = async (req, res, next) => {
         success: false,
         message: 'ایمیل یا شماره تماس الزامی است.',
       });
+    }
+
+    // BUG FIX: validate email format when provided
+    if (email && !isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: 'فرمت ایمیل صحیح نیست.' });
+    }
+
+    // BUG FIX: validate serviceId actually exists when provided
+    if (serviceId) {
+      const service = await prisma.service.findUnique({ where: { id: serviceId } });
+      if (!service) {
+        return res.status(400).json({ success: false, message: 'سرویس انتخاب‌شده یافت نشد.' });
+      }
     }
 
     const lead = await prisma.projectLead.create({
@@ -106,13 +122,30 @@ export const updateProjectLead = async (req, res, next) => {
   try {
     const { status, notes, assignedTo } = req.body;
 
+    // BUG FIX: check lead exists before updating (was throwing P2025 unhandled)
+    const existing = await prisma.projectLead.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'درخواست یافت نشد.' });
+    }
+
+    // BUG FIX: validate status value
+    const validStatuses = ['NEW', 'CONTACTED', 'IN_PROGRESS', 'CONVERTED', 'CLOSED'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'وضعیت نامعتبر است.' });
+    }
+
+    const updates = {};
+    if (status     !== undefined) updates.status     = status;
+    if (notes      !== undefined) updates.notes      = notes;
+    if (assignedTo !== undefined) updates.assignedTo = assignedTo;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'هیچ فیلدی برای بروزرسانی ارسال نشده.' });
+    }
+
     const lead = await prisma.projectLead.update({
       where: { id: req.params.id },
-      data: {
-        ...(status     && { status }),
-        ...(notes      && { notes }),
-        ...(assignedTo && { assignedTo }),
-      },
+      data:  updates,
     });
 
     res.json({ success: true, message: 'درخواست بروز شد.', data: lead });

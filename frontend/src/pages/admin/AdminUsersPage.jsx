@@ -8,9 +8,9 @@ import {
 import { adminApi } from '../../services/api';
 
 const ROLE_MAP = {
-  CUSTOMER:    { label: 'مشتری',    color: 'gray'   },
-  ADMIN:       { label: 'مدیر',     color: 'yellow' },
-  SUPER_ADMIN: { label: 'مدیر ارشد', color: 'orange' },
+  CUSTOMER: { label: 'مشتری',    color: 'gray'   },
+  MANAGER:  { label: 'مدیر',     color: 'yellow' },
+  ADMIN:    { label: 'مدیر ارشد', color: 'orange' },
 };
 
 const toDate = (d) => d ? new Date(d).toLocaleDateString('fa-IR') : '—';
@@ -83,8 +83,9 @@ function CreateAdminModal({ onSave, onClose, saving }) {
         </FormField>
         <FormField label="نقش">
           <Select value={form.role} onChange={e => set('role', e.target.value)}>
-            <option value="ADMIN">مدیر</option>
-            <option value="SUPER_ADMIN">مدیر ارشد</option>
+            <option value="CUSTOMER">مشتری</option>
+            <option value="MANAGER">مدیر</option>
+            <option value="ADMIN">مدیر ارشد</option>
           </Select>
         </FormField>
         <div className="flex justify-end gap-3 pt-2 border-t border-border-default">

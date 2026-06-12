@@ -40,7 +40,7 @@ app.use(cors({
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' })); // BUG FIX: reduced from 10mb — JSON bodies shouldn't be that large; file uploads use multipart
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
@@ -49,9 +49,10 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
+// BUG FIX: rate limits were way too high (20000, 10000) — reduced to sensible values
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 20000,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'درخواست‌های زیادی دریافت شد. لطفاً بعداً تلاش کنید.' },
@@ -59,7 +60,7 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10000,
+  max: 20,
   message: { success: false, message: 'تعداد تلاش‌های ورود محدود است. لطفاً بعداً تلاش کنید.' },
 });
 
@@ -114,6 +115,15 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Closing server...');
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+});
+
+// BUG FIX: handle SIGINT (Ctrl+C) for graceful dev shutdown
+process.on('SIGINT', async () => {
+  console.log('SIGINT received. Closing server...');
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

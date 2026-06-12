@@ -582,11 +582,11 @@ export default function DashboardPage() {
                 <p className="font-bold text-text-primary text-sm text-center truncate max-w-[160px]">{user.name}</p>
                 <span className={`
                   text-[0.7rem] mt-1.5 px-2.5 py-0.5 rounded-full border
-                  ${user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+                  ${user.role === 'ADMIN' || user?.role === 'MANAGER'
                     ? 'text-accent-yellow bg-accent-yellow/10 border-accent-yellow/25'
                     : 'text-text-muted bg-white/5 border-border-default'}
                 `}>
-                  {user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'ادمین' : 'کاربر'}
+                  {user.role === 'ADMIN' || user?.role === 'MANAGER' ? 'ادمین' : 'کاربر'}
                 </span>
               </div>
 

@@ -139,8 +139,8 @@ function RegisterForm({ onSuccess, onSwitch }) {
       setErr('لطفاً همه فیلدها را پر کنید');
       return;
     }
-    if (password.length < 6) {
-      setErr('رمز عبور باید حداقل ۶ کاراکتر باشد');
+    if (password.length < 8) {
+      setErr('رمز عبور باید حداقل ۸ کاراکتر باشد');
       return;
     }
     if (password !== confirm) {

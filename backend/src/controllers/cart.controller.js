@@ -8,7 +8,7 @@ const getOrCreateCart = async (userId) => {
       items: {
         include: {
           product: {
-            select: { id: true, name: true, slug: true, price: true, icon: true, stock: true },
+            select: { id: true, name: true, slug: true, price: true, icon: true, stock: true, isActive: true },
           },
         },
       },
@@ -18,7 +18,15 @@ const getOrCreateCart = async (userId) => {
   if (!cart) {
     cart = await prisma.cart.create({
       data: { userId },
-      include: { items: { include: { product: true } } },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, slug: true, price: true, icon: true, stock: true, isActive: true },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -26,11 +34,13 @@ const getOrCreateCart = async (userId) => {
 };
 
 const formatCart = (cart) => {
-  const subtotal = cart.items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  // BUG FIX: filter out inactive products from cart display
+  const activeItems = cart.items.filter(i => i.product.isActive);
+  const subtotal = activeItems.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
   return {
     id: cart.id,
-    items: cart.items,
-    itemCount: cart.items.reduce((sum, i) => sum + i.quantity, 0),
+    items: activeItems,
+    itemCount: activeItems.reduce((sum, i) => sum + i.quantity, 0),
     subtotal,
   };
 };
@@ -50,6 +60,12 @@ export const addToCart = async (req, res, next) => {
   try {
     const { productId, quantity = 1 } = req.body;
 
+    // BUG FIX: validate quantity is positive integer
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty < 1) {
+      return res.status(400).json({ success: false, message: 'تعداد باید عدد صحیح مثبت باشد.' });
+    }
+
     const product = await prisma.product.findFirst({
       where: { id: productId, isActive: true },
     });
@@ -58,25 +74,30 @@ export const addToCart = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
     }
 
-    // Check stock (digital products have stock = -1 = unlimited)
-    if (product.stock !== -1 && product.stock < quantity) {
-      return res.status(400).json({ success: false, message: 'موجودی کافی نیست.' });
-    }
-
     const cart = await getOrCreateCart(req.user.id);
 
     const existingItem = await prisma.cartItem.findUnique({
       where: { cartId_productId: { cartId: cart.id, productId } },
     });
 
+    const newQuantity = existingItem ? existingItem.quantity + qty : qty;
+
+    // Check stock (digital products have stock = -1 = unlimited)
+    if (product.stock !== -1 && product.stock < newQuantity) {
+      return res.status(400).json({
+        success: false,
+        message: `موجودی کافی نیست. حداکثر ${product.stock} عدد قابل سفارش است.`,
+      });
+    }
+
     if (existingItem) {
       await prisma.cartItem.update({
         where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + Number(quantity) },
+        data: { quantity: newQuantity },
       });
     } else {
       await prisma.cartItem.create({
-        data: { cartId: cart.id, productId, quantity: Number(quantity) },
+        data: { cartId: cart.id, productId, quantity: qty },
       });
     }
 
@@ -92,16 +113,35 @@ export const updateCartItem = async (req, res, next) => {
   try {
     const { quantity } = req.body;
 
-    if (quantity < 1) {
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty < 1) {
       return res.status(400).json({ success: false, message: 'تعداد باید حداقل ۱ باشد.' });
     }
 
     const cart = await prisma.cart.findUnique({ where: { userId: req.user.id } });
     if (!cart) return res.status(404).json({ success: false, message: 'سبد خرید یافت نشد.' });
 
-    await prisma.cartItem.updateMany({
+    // BUG FIX: verify the item belongs to this cart before updating
+    const item = await prisma.cartItem.findFirst({
       where: { id: req.params.itemId, cartId: cart.id },
-      data: { quantity: Number(quantity) },
+      include: { product: true },
+    });
+
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'آیتم در سبد خرید یافت نشد.' });
+    }
+
+    // Check stock
+    if (item.product.stock !== -1 && item.product.stock < qty) {
+      return res.status(400).json({
+        success: false,
+        message: `موجودی کافی نیست. حداکثر ${item.product.stock} عدد قابل سفارش است.`,
+      });
+    }
+
+    await prisma.cartItem.update({
+      where: { id: req.params.itemId },
+      data: { quantity: qty },
     });
 
     const updatedCart = await getOrCreateCart(req.user.id);

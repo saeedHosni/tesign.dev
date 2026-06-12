@@ -51,6 +51,8 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
+  @@index([userId])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -59,10 +61,10 @@ model RefreshToken {
 model Service {
   id          String   @id @default(uuid())
   slug        String   @unique
-  icon        String
+  icon        String?
   category    String
   title       String
-  description String
+  description String?
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -111,7 +113,7 @@ model Product {
   categoryId    String
   category      Category      @relation(fields: [categoryId], references: [id])
   price         Int           // stored in Rials (Toman * 10)
-  comparePrice  Int?          // original price for discounts
+  comparePrice  Int?          // original price for discounts — must be > price
   badge         String?       // "پرفروش" | "جدید" | "پیشنهادی"
   isActive      Boolean       @default(true)
   isFeatured    Boolean       @default(false)
@@ -132,6 +134,12 @@ model Product {
   wishlistItems WishlistItem[]
   images        ProductImage[]
 
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([categoryId])
+  @@index([price])
+  @@index([totalSales])
+  @@index([createdAt])
   @@map("products")
 }
 
@@ -170,6 +178,8 @@ model CartItem {
   createdAt DateTime @default(now())
 
   @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
   @@map("cart_items")
 }
 
@@ -182,6 +192,7 @@ model WishlistItem {
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])
+  @@index([userId])
   @@map("wishlist_items")
 }
 
@@ -209,6 +220,11 @@ model Order {
   items     OrderItem[]
   downloads OrderDownload[]
 
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([paidAt])
   @@map("orders")
 }
 
@@ -237,6 +253,8 @@ model OrderItem {
   unitPrice  Int     // price at time of purchase
   totalPrice Int
 
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items")
 }
 
@@ -264,7 +282,7 @@ model ProjectLead {
   serviceId   String?
   service     Service?   @relation(fields: [serviceId], references: [id])
   name        String?
-  email       String
+  email       String?
   phone       String?
   projectType String?
   budget      String?
@@ -276,6 +294,8 @@ model ProjectLead {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  @@index([status])
+  @@index([createdAt])
   @@map("project_leads")
 }
 
@@ -303,6 +323,8 @@ model Review {
   updatedAt  DateTime @updatedAt
 
   @@unique([userId, productId])
+  @@index([productId, isApproved])
+  @@index([isApproved])
   @@map("reviews")
 }
 
@@ -321,6 +343,8 @@ model Coupon {
   expiresAt      DateTime?
   createdAt      DateTime  @default(now())
 
+  @@index([isActive])
+  @@index([expiresAt])
   @@map("coupons")
 }
 

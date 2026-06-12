@@ -112,7 +112,7 @@ function SidebarContent({ path, navigate, user, onLogout }) {
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-text-primary truncate">{user?.name}</p>
             <p className="text-[0.7rem] text-text-muted truncate">
-              {user?.role === 'SUPER_ADMIN' ? 'مدیر ارشد' : 'مدیر'}
+              {user?.role === 'ADMIN' ? 'مدیر ارشد' : 'مدیر'}
             </p>
           </div>
           <button

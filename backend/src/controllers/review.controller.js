@@ -12,7 +12,7 @@ const recalculateProductRating = async (productId) => {
   await prisma.product.update({
     where: { id: productId },
     data: {
-      rating:      Math.round((stats._avg.rating || 0) * 10) / 10, // round to 1 decimal
+      rating:      Math.round((stats._avg.rating || 0) * 10) / 10,
       reviewCount: stats._count._all,
     },
   });
@@ -32,8 +32,8 @@ export const createReview = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'امتیاز باید عددی بین ۱ تا ۵ باشد.' });
     }
 
-    // Verify product exists
-    const product = await prisma.product.findUnique({ where: { id: productId } });
+    // Verify product exists and is active
+    const product = await prisma.product.findFirst({ where: { id: productId, isActive: true } });
     if (!product) {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
     }
@@ -53,15 +53,19 @@ export const createReview = async (req, res, next) => {
       });
     }
 
+    // BUG FIX: sanitize title/body length to prevent very long inputs
+    const sanitizedTitle = title ? String(title).slice(0, 200) : undefined;
+    const sanitizedBody  = body  ? String(body).slice(0, 2000) : undefined;
+
     const review = await prisma.review.upsert({
       where: { userId_productId: { userId: req.user.id, productId } },
-      update: { rating: ratingNum, title, body, isApproved: false },
+      update: { rating: ratingNum, title: sanitizedTitle, body: sanitizedBody, isApproved: false },
       create: {
         userId: req.user.id,
         productId,
         rating: ratingNum,
-        title,
-        body,
+        title:  sanitizedTitle,
+        body:   sanitizedBody,
       },
     });
 
@@ -118,6 +122,11 @@ export const approveReview = async (req, res, next) => {
     const existing = await prisma.review.findUnique({ where: { id: req.params.id } });
     if (!existing) {
       return res.status(404).json({ success: false, message: 'نظر یافت نشد.' });
+    }
+
+    // BUG FIX: don't approve an already-approved review
+    if (existing.isApproved) {
+      return res.status(400).json({ success: false, message: 'این نظر قبلاً تأیید شده است.' });
     }
 
     const review = await prisma.review.update({
