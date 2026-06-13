@@ -3,10 +3,8 @@ import { useState, useRef } from 'react';
 import SectionLabel from '../components/ui/SectionLabel';
 import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
-import {
-  ORDER_CATEGORIES, BUDGET_OPTIONS, TIMELINE_OPTIONS, PRICE_ESTIMATES
-} from '../data/siteData';
-import { projectApi, uploadApi } from '../services/api';
+import { useOrderFormConfig } from '../hooks/useOrderFormConfig';
+import { projectApi, uploadApi, orderConfigApi } from '../services/api';
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 function StepBar({ current, total }) {
@@ -52,17 +50,36 @@ function SubtypePill({ item, selected, onClick }) {
   );
 }
 
-// ─── Price Estimator ──────────────────────────────────────────────────────────
-function PriceEstimator({ selectedCategory, selectedSubtypes }) {
-  if (!selectedCategory && selectedSubtypes.length === 0) return null;
+// ─── Price Estimator — داینامیک از بک‌اند ────────────────────────────────────
+function PriceEstimator({ selectedBudgetValue, selectedTimelineValue }) {
+  const [estimate, setEstimate] = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const prevKey = useRef('');
 
-  let estimate = PRICE_ESTIMATES.default;
-  for (const sub of selectedSubtypes) {
-    if (PRICE_ESTIMATES[sub]) { estimate = PRICE_ESTIMATES[sub]; break; }
+  // هر بار که budget یا timeline تغییر کرد fetch کن
+  const key = `${selectedBudgetValue}|${selectedTimelineValue}`;
+  if (key !== prevKey.current && (selectedBudgetValue || selectedTimelineValue)) {
+    prevKey.current = key;
+    setLoading(true);
+    orderConfigApi
+      .getEstimate(selectedBudgetValue, selectedTimelineValue)
+      .then(res => { setEstimate(res.data || null); })
+      .catch(() => { setEstimate(null); })
+      .finally(() => setLoading(false));
   }
-  if (!selectedSubtypes.length && PRICE_ESTIMATES[selectedCategory]) {
-    estimate = PRICE_ESTIMATES[selectedCategory];
+
+  if (!selectedBudgetValue && !selectedTimelineValue) return null;
+  if (loading) {
+    return (
+      <div className="bg-[rgba(245,197,24,0.06)] border border-border-accent rounded-lg p-5">
+        <div className="flex items-center gap-2">
+          <span className="w-4 h-4 border-2 border-accent-yellow/30 border-t-accent-yellow rounded-full animate-spin" />
+          <span className="text-[0.82rem] text-text-muted">در حال محاسبه تخمین...</span>
+        </div>
+      </div>
+    );
   }
+  if (!estimate) return null;
 
   return (
     <div className="bg-[rgba(245,197,24,0.06)] border border-border-accent rounded-lg p-5">
@@ -76,6 +93,17 @@ function PriceEstimator({ selectedCategory, selectedSubtypes }) {
       <p className="text-[0.75rem] text-text-muted mt-2 leading-[1.7]">
         این تخمین بر اساس پروژه‌های مشابه است. قیمت نهایی پس از بررسی جزئیات کامل مشخص می‌شود.
       </p>
+    </div>
+  );
+}
+
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+function ConfigSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 animate-pulse">
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} className="h-28 rounded-lg bg-white/5 border border-border-default" />
+      ))}
     </div>
   );
 }
@@ -128,20 +156,34 @@ function FileUploader({ files, setFiles }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function OrderPage() {
   const [step, setStep] = useState(0); // 0=category, 1=details, 2=contact, 3=done
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubtypes, setSelectedSubtypes] = useState([]);
-  const [selectedBudget, setSelectedBudget]   = useState('');
-  const [selectedTimeline, setSelectedTimeline] = useState('');
-  const [description, setDescription] = useState('');
-  const [files, setFiles]   = useState([]);
-  const [name, setName]     = useState('');
-  const [phone, setPhone]   = useState('');
-  const [email, setEmail]   = useState('');
+  const [selectedCategory,   setSelectedCategory]   = useState('');
+  const [selectedSubtypes,   setSelectedSubtypes]   = useState([]);
+  const [selectedBudget,     setSelectedBudget]     = useState('');
+  const [selectedTimeline,   setSelectedTimeline]   = useState('');
+  const [description,        setDescription]        = useState('');
+  const [files, setFiles]       = useState([]);
+  const [name, setName]         = useState('');
+  const [phone, setPhone]       = useState('');
+  const [email, setEmail]       = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors]   = useState({});
+  const [loading, setLoading]   = useState(false);
+  const [errors, setErrors]     = useState({});
 
-  const currentCat = ORDER_CATEGORIES.find(c => c.id === selectedCategory);
+  // ─── داده‌ها از بک‌اند ──────────────────────────────────────────────────────
+  const {
+    categoriesWithSubtypes,
+    budgetOptions,
+    timelineOptions,
+    loading: configLoading,
+    error:   configError,
+  } = useOrderFormConfig();
+
+  // دسته انتخاب شده با زیردسته‌هایش
+  const currentCat = categoriesWithSubtypes.find(c => c.id === selectedCategory);
+
+  // value بودجه/زمانبندی انتخاب شده — برای API تخمین قیمت
+  const selectedBudgetValue   = budgetOptions.find(b => b.id === selectedBudget)?.value   || '';
+  const selectedTimelineValue = timelineOptions.find(t => t.id === selectedTimeline)?.value || '';
 
   const toggleSubtype = (id) => {
     setSelectedSubtypes(prev =>
@@ -177,17 +219,16 @@ export default function OrderPage() {
       let attachments = [];
       if (files.length > 0) {
         const uploadRes = await uploadApi.projectFiles(files);
-        attachments = uploadRes.data; // [{ filename, originalName, url, mimetype, size }, ...]
+        attachments = uploadRes.data;
       }
 
       // ۲) برچسب‌های قابل‌فهم (نه id) را برای ادمین بفرست
-      const categoryLabel  = ORDER_CATEGORIES.find(c => c.id === selectedCategory)?.label || selectedCategory;
-      const subtypeLabels  = selectedSubtypes.map(sid => {
-        const cat = ORDER_CATEGORIES.find(c => c.id === selectedCategory);
-        return cat?.subtypes.find(s => s.id === sid)?.label || sid;
-      }).filter(Boolean);
-      const budgetLabel   = BUDGET_OPTIONS.find(b => b.id === selectedBudget)?.label   || selectedBudget;
-      const timelineLabel = TIMELINE_OPTIONS.find(t => t.id === selectedTimeline)?.label || selectedTimeline;
+      const categoryLabel  = currentCat?.label || selectedCategory;
+      const subtypeLabels  = selectedSubtypes.map(sid =>
+        currentCat?.subtypes.find(s => s.id === sid)?.label || sid
+      ).filter(Boolean);
+      const budgetLabel   = budgetOptions.find(b => b.id === selectedBudget)?.label   || selectedBudget;
+      const timelineLabel = timelineOptions.find(t => t.id === selectedTimeline)?.label || selectedTimeline;
 
       // ۳) نام شرکت/برند را چون فیلد جدا در بک‌اند نیست، داخل توضیحات بگذار
       const fullDescription = companyName.trim()
@@ -222,22 +263,41 @@ export default function OrderPage() {
     <div>
       <h2 className="text-[1.6rem] font-black text-text-primary mb-2">چه نوع پروژه‌ای دارید؟</h2>
       <p className="text-text-secondary mb-8">دسته‌بندی اصلی کارتان را انتخاب کنید. می‌توانید زیردسته‌های متعددی داشته باشید.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {ORDER_CATEGORIES.map(cat => (
-          <CategoryCard key={cat.id} cat={cat} selected={selectedCategory === cat.id} onClick={setSelectedCategory} />
-        ))}
-      </div>
-      {errors.category && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.category}</p>}
 
-      {currentCat && (
-        <div className="mt-6">
-          <p className="text-[0.85rem] text-text-muted mb-3">زیردسته‌های مرتبط (اختیاری):</p>
-          <div className="flex flex-wrap gap-2">
-            {currentCat.subtypes.map(sub => (
-              <SubtypePill key={sub.id} item={sub} selected={selectedSubtypes.includes(sub.id)} onClick={toggleSubtype} />
+      {configError ? (
+        <div className="bg-[rgba(255,107,53,0.08)] border border-accent-orange/30 rounded-lg p-5 mb-6 text-center">
+          <p className="text-accent-orange text-[0.85rem] mb-3">⚠️ خطا در بارگذاری گزینه‌ها</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-[0.8rem] text-accent-yellow underline bg-transparent border-none cursor-pointer">
+            تلاش مجدد
+          </button>
+        </div>
+      ) : configLoading ? (
+        <ConfigSkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {categoriesWithSubtypes.map(cat => (
+              <CategoryCard key={cat.id} cat={cat} selected={selectedCategory === cat.id} onClick={id => {
+                setSelectedCategory(id);
+                setSelectedSubtypes([]); // زیردسته قبلی را پاک کن
+              }} />
             ))}
           </div>
-        </div>
+          {errors.category && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.category}</p>}
+
+          {currentCat && currentCat.subtypes.length > 0 && (
+            <div className="mt-6">
+              <p className="text-[0.85rem] text-text-muted mb-3">زیردسته‌های مرتبط (اختیاری):</p>
+              <div className="flex flex-wrap gap-2">
+                {currentCat.subtypes.map(sub => (
+                  <SubtypePill key={sub.id} item={sub} selected={selectedSubtypes.includes(sub.id)} onClick={toggleSubtype} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -252,37 +312,56 @@ export default function OrderPage() {
         {/* Budget */}
         <div>
           <label className="block text-[0.85rem] font-bold text-text-primary mb-3">بازه بودجه تقریبی</label>
-          <div className="flex flex-col gap-2">
-            {BUDGET_OPTIONS.map(b => (
-              <button key={b.id} onClick={() => setSelectedBudget(b.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
-                  ${selectedBudget === b.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
-                <span>{b.icon}</span>
-                <span>{b.label}</span>
-                {selectedBudget === b.id && <span className="mr-auto text-[0.75rem]">✓</span>}
-              </button>
-            ))}
-          </div>
+          {configLoading ? (
+            <div className="flex flex-col gap-2 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {budgetOptions.map(b => (
+                <button key={b.id} onClick={() => setSelectedBudget(b.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
+                    ${selectedBudget === b.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
+                  {b.icon && <span>{b.icon}</span>}
+                  <span>{b.label}</span>
+                  {selectedBudget === b.id && <span className="mr-auto text-[0.75rem]">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
           {errors.budget && <p className="text-accent-orange text-[0.82rem] mt-2">{errors.budget}</p>}
         </div>
 
         {/* Timeline */}
         <div>
           <label className="block text-[0.85rem] font-bold text-text-primary mb-3">زمانبندی مورد نظر</label>
-          <div className="flex flex-col gap-2">
-            {TIMELINE_OPTIONS.map(t => (
-              <button key={t.id} onClick={() => setSelectedTimeline(t.id)}
-                className={`flex items-center justify-between px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
-                  ${selectedTimeline === t.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
-                <span>{t.label}</span>
-                {selectedTimeline === t.id && <span className="text-[0.75rem]">✓</span>}
-              </button>
-            ))}
-          </div>
+          {configLoading ? (
+            <div className="flex flex-col gap-2 animate-pulse">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {timelineOptions.map(t => (
+                <button key={t.id} onClick={() => setSelectedTimeline(t.id)}
+                  className={`flex items-center justify-between px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
+                    ${selectedTimeline === t.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
+                  <span>{t.label}</span>
+                  {selectedTimeline === t.id && <span className="text-[0.75rem]">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {(selectedCategory || selectedSubtypes.length > 0) && (
+          {(selectedBudget || selectedTimeline) && (
             <div className="mt-4">
-              <PriceEstimator selectedCategory={selectedCategory} selectedSubtypes={selectedSubtypes} />
+              <PriceEstimator
+                selectedBudgetValue={selectedBudgetValue}
+                selectedTimelineValue={selectedTimelineValue}
+              />
             </div>
           )}
         </div>
@@ -350,32 +429,29 @@ export default function OrderPage() {
           {selectedCategory && (
             <div className="flex justify-between">
               <span className="text-text-muted">نوع پروژه:</span>
-              <span className="text-text-primary font-semibold">
-                {ORDER_CATEGORIES.find(c => c.id === selectedCategory)?.label}
-              </span>
+              <span className="text-text-primary font-semibold">{currentCat?.label}</span>
             </div>
           )}
           {selectedSubtypes.length > 0 && (
             <div className="flex justify-between items-start gap-4">
               <span className="text-text-muted flex-shrink-0">جزئیات:</span>
               <span className="text-text-primary font-semibold text-left">
-                {selectedSubtypes.map(sid => {
-                  const cat = ORDER_CATEGORIES.find(c => c.id === selectedCategory);
-                  return cat?.subtypes.find(s => s.id === sid)?.label;
-                }).filter(Boolean).join(' · ')}
+                {selectedSubtypes.map(sid =>
+                  currentCat?.subtypes.find(s => s.id === sid)?.label
+                ).filter(Boolean).join(' · ')}
               </span>
             </div>
           )}
           {selectedBudget && (
             <div className="flex justify-between">
               <span className="text-text-muted">بودجه:</span>
-              <span className="text-accent-yellow font-bold">{BUDGET_OPTIONS.find(b => b.id === selectedBudget)?.label}</span>
+              <span className="text-accent-yellow font-bold">{budgetOptions.find(b => b.id === selectedBudget)?.label}</span>
             </div>
           )}
           {selectedTimeline && (
             <div className="flex justify-between">
               <span className="text-text-muted">زمانبندی:</span>
-              <span className="text-text-primary font-semibold">{TIMELINE_OPTIONS.find(t => t.id === selectedTimeline)?.label}</span>
+              <span className="text-text-primary font-semibold">{timelineOptions.find(t => t.id === selectedTimeline)?.label}</span>
             </div>
           )}
           {files.length > 0 && (
@@ -385,9 +461,12 @@ export default function OrderPage() {
             </div>
           )}
         </div>
-        {(selectedSubtypes.length > 0 || selectedCategory) && (
+        {(selectedBudget || selectedTimeline) && (
           <div className="mt-4 pt-4 border-t border-border-default">
-            <PriceEstimator selectedCategory={selectedCategory} selectedSubtypes={selectedSubtypes} />
+            <PriceEstimator
+              selectedBudgetValue={selectedBudgetValue}
+              selectedTimelineValue={selectedTimelineValue}
+            />
           </div>
         )}
       </div>
@@ -399,7 +478,7 @@ export default function OrderPage() {
       )}
 
       <p className="text-[0.78rem] text-text-muted">
-        با ثبت سفارش، با <a href="#" className="text-accent-yellow no-underline hover:underline">شرایط استفاده</a> و <a href="#" className="text-accent-yellow no-underline hover:underline">حریم خصوصی</a> تیزاین موافقت می‌کنید.
+        با ثبت سفارش، با <a href="#" className="text-accent-yellow no-underline hover:underline">شرایط استفاده</a> و <a href="#" className="text-accent-yellow no-underline hover:underline">حریم خصوصی</a> موافقت می‌کنید.
       </p>
     </div>
   );
@@ -412,7 +491,7 @@ export default function OrderPage() {
       </div>
       <h2 className="text-[2rem] font-black text-text-primary mb-3">سفارش ثبت شد!</h2>
       <p className="text-text-secondary max-w-[420px] mx-auto mb-8 leading-[1.8]">
-        ممنون {name ? `${name} عزیز` : ''}! سفارش شما دریافت شد. تیم تیزاین ظرف <strong className="text-accent-yellow">۲۴ ساعت</strong> با شما تماس می‌گیرد.
+        ممنون {name ? `${name} عزیز` : ''}! سفارش شما دریافت شد. تیم ما ظرف <strong className="text-accent-yellow">۲۴ ساعت</strong> با شما تماس می‌گیرد.
       </p>
       <div className="flex flex-wrap justify-center gap-4">
         <Button href="/" onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); window.scrollTo({ top: 0 }); }} variant="primary">

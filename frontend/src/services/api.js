@@ -161,6 +161,21 @@ export const settingsApi = {
   getPublic: () => request('/settings/public'),
 };
 
+// ─── Order Form Config API — عمومی (بدون نیاز به لاگین) ──────────────────────
+// برای رندر فرم ثبت سفارش و دریافت تخمین قیمت داینامیک از بک‌اند
+export const orderConfigApi = {
+  // GET /api/order-config — همه گزینه‌های فعال (دسته، زیردسته، بودجه، زمانبندی)
+  getOptions: () => request('/order-config'),
+
+  // GET /api/order-config/estimate?budgetValue=...&timelineValue=...
+  getEstimate: (budgetValue, timelineValue) => {
+    const params = new URLSearchParams();
+    if (budgetValue)   params.set('budgetValue',   budgetValue);
+    if (timelineValue) params.set('timelineValue', timelineValue);
+    return request(`/order-config/estimate?${params.toString()}`);
+  },
+};
+
 // ─── Dashboard API ─────────────────────────────────────────────────────────────
 // تمام اندپوینت‌های پنل کاربری زیر /api/dashboard — نیاز به Bearer Token دارند
 
