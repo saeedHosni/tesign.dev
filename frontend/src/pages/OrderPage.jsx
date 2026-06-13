@@ -153,6 +153,195 @@ function FileUploader({ files, setFiles }) {
   );
 }
 
+// ─── Step 0: Category ────────────────────────────────────────────────────────
+function StepCategory({ categoriesWithSubtypes, configError, configLoading, selectedCategory, setSelectedCategory, selectedSubtypes, setSelectedSubtypes, toggleSubtype, errors }) {
+  const currentCat = categoriesWithSubtypes.find(c => c.id === selectedCategory);
+  return (
+    <div>
+      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">چه نوع پروژه‌ای دارید؟</h2>
+      <p className="text-text-secondary mb-8">دسته‌بندی اصلی کارتان را انتخاب کنید. می‌توانید زیردسته‌های متعددی داشته باشید.</p>
+      {configError ? (
+        <div className="bg-[rgba(255,107,53,0.08)] border border-accent-orange/30 rounded-lg p-5 mb-6 text-center">
+          <p className="text-accent-orange text-[0.85rem] mb-3">⚠️ خطا در بارگذاری گزینه‌ها</p>
+          <button onClick={() => window.location.reload()} className="text-[0.8rem] text-accent-yellow underline bg-transparent border-none cursor-pointer">تلاش مجدد</button>
+        </div>
+      ) : configLoading ? (
+        <ConfigSkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {categoriesWithSubtypes.map(cat => (
+              <CategoryCard key={cat.id} cat={cat} selected={selectedCategory === cat.id} onClick={id => {
+                setSelectedCategory(id);
+                setSelectedSubtypes([]);
+              }} />
+            ))}
+          </div>
+          {errors.category && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.category}</p>}
+          {currentCat && currentCat.subtypes.length > 0 && (
+            <div className="mt-6">
+              <p className="text-[0.85rem] text-text-muted mb-3">زیردسته‌های مرتبط (اختیاری):</p>
+              <div className="flex flex-wrap gap-2">
+                {currentCat.subtypes.map(sub => (
+                  <SubtypePill key={sub.id} item={sub} selected={selectedSubtypes.includes(sub.id)} onClick={toggleSubtype} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Step 1: Details ─────────────────────────────────────────────────────────
+function StepDetails({ budgetOptions, timelineOptions, configLoading, selectedBudget, setSelectedBudget, selectedTimeline, setSelectedTimeline, selectedBudgetValue, selectedTimelineValue, description, setDescription, files, setFiles, errors }) {
+  return (
+    <div>
+      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">جزئیات پروژه</h2>
+      <p className="text-text-secondary mb-8">هرچه بیشتر بنویسید، تخمین دقیق‌تری می‌گیرید.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label className="block text-[0.85rem] font-bold text-text-primary mb-3">بازه بودجه تقریبی</label>
+          {configLoading ? (
+            <div className="flex flex-col gap-2 animate-pulse">{[1,2,3,4,5,6].map(i => <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />)}</div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {budgetOptions.map(b => (
+                <button key={b.id} onClick={() => setSelectedBudget(b.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right ${selectedBudget === b.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
+                  {b.icon && <span>{b.icon}</span>}
+                  <span>{b.label}</span>
+                  {selectedBudget === b.id && <span className="mr-auto text-[0.75rem]">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          {errors.budget && <p className="text-accent-orange text-[0.82rem] mt-2">{errors.budget}</p>}
+        </div>
+        <div>
+          <label className="block text-[0.85rem] font-bold text-text-primary mb-3">زمانبندی مورد نظر</label>
+          {configLoading ? (
+            <div className="flex flex-col gap-2 animate-pulse">{[1,2,3,4,5].map(i => <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />)}</div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {timelineOptions.map(t => (
+                <button key={t.id} onClick={() => setSelectedTimeline(t.id)}
+                  className={`flex items-center justify-between px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right ${selectedTimeline === t.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
+                  <span>{t.label}</span>
+                  {selectedTimeline === t.id && <span className="text-[0.75rem]">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          {(selectedBudget || selectedTimeline) && (
+            <div className="mt-4">
+              <PriceEstimator selectedBudgetValue={selectedBudgetValue} selectedTimelineValue={selectedTimelineValue} />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mb-6">
+        <label className="block text-[0.85rem] font-bold text-text-primary mb-3">توضیحات پروژه</label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)}
+          placeholder="هرچه بیشتر درباره پروژه‌تان بنویسید: چه می‌خواهید؟ چه مشکلی را حل می‌کند؟ رقبا یا نمونه‌هایی که دوست دارید؟ ویژگی‌های ضروری؟"
+          dir="rtl" rows={5}
+          className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none resize-none transition-all duration-300 focus:border-accent-yellow focus:bg-[rgba(245,197,24,0.03)] placeholder:text-text-muted" />
+      </div>
+      <div>
+        <label className="block text-[0.85rem] font-bold text-text-primary mb-3">فایل‌های مرجع <span className="text-text-muted font-normal">(اختیاری)</span></label>
+        <p className="text-[0.78rem] text-text-muted mb-3">اگر فایل مرجع، لوگو، رنگ‌بندی، وایرفریم یا هر چیز مرتبطی دارید آپلود کنید.</p>
+        <FileUploader files={files} setFiles={setFiles} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 2: Contact ──────────────────────────────────────────────────────────
+function StepContact({ name, setName, phone, setPhone, email, setEmail, companyName, setCompanyName, errors, selectedCategory, selectedSubtypes, selectedBudget, selectedTimeline, files, budgetOptions, timelineOptions, categoriesWithSubtypes, selectedBudgetValue, selectedTimelineValue }) {
+  const currentCat = categoriesWithSubtypes.find(c => c.id === selectedCategory);
+  return (
+    <div>
+      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">اطلاعات تماس</h2>
+      <p className="text-text-secondary mb-8">چگونه با شما در ارتباط باشیم؟</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        <div>
+          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">نام و نام خانوادگی <span className="text-accent-orange">*</span></label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="علی محمدی"
+            dir="rtl" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
+          {errors.name && <p className="text-accent-orange text-[0.78rem] mt-1">{errors.name}</p>}
+        </div>
+        <div>
+          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">نام شرکت / برند <span className="text-text-muted font-normal">(اختیاری)</span></label>
+          <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="شرکت ..."
+            dir="rtl" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
+        </div>
+        <div>
+          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">شماره تماس <span className="text-accent-orange">*</span></label>
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="09123456789"
+            dir="ltr" type="tel" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
+        </div>
+        <div>
+          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">ایمیل</label>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"
+            dir="ltr" type="email" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
+        </div>
+      </div>
+      {errors.contact && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.contact}</p>}
+      <div className="bg-bg-surface border border-border-default rounded-lg p-5 mb-6">
+        <h4 className="text-[0.85rem] font-black text-text-primary mb-4">خلاصه سفارش شما</h4>
+        <div className="flex flex-col gap-2.5 text-[0.82rem]">
+          {selectedCategory && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">نوع پروژه:</span>
+              <span className="text-text-primary font-semibold">{currentCat?.label}</span>
+            </div>
+          )}
+          {selectedSubtypes.length > 0 && (
+            <div className="flex justify-between items-start gap-4">
+              <span className="text-text-muted flex-shrink-0">جزئیات:</span>
+              <span className="text-text-primary font-semibold text-left">
+                {selectedSubtypes.map(sid => currentCat?.subtypes.find(s => s.id === sid)?.label).filter(Boolean).join(' · ')}
+              </span>
+            </div>
+          )}
+          {selectedBudget && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">بودجه:</span>
+              <span className="text-accent-yellow font-bold">{budgetOptions.find(b => b.id === selectedBudget)?.label}</span>
+            </div>
+          )}
+          {selectedTimeline && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">زمانبندی:</span>
+              <span className="text-text-primary font-semibold">{timelineOptions.find(t => t.id === selectedTimeline)?.label}</span>
+            </div>
+          )}
+          {files.length > 0 && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">فایل‌های ضمیمه:</span>
+              <span className="text-text-primary font-semibold">{files.length} فایل</span>
+            </div>
+          )}
+        </div>
+        {(selectedBudget || selectedTimeline) && (
+          <div className="mt-4 pt-4 border-t border-border-default">
+            <PriceEstimator selectedBudgetValue={selectedBudgetValue} selectedTimelineValue={selectedTimelineValue} />
+          </div>
+        )}
+      </div>
+      {errors.submit && (
+        <div className="bg-[rgba(255,107,53,0.1)] border border-accent-orange/30 rounded-lg p-4 mb-4">
+          <p className="text-accent-orange text-[0.85rem]">{errors.submit}</p>
+        </div>
+      )}
+      <p className="text-[0.78rem] text-text-muted">
+        با ثبت سفارش، با <a href="#" className="text-accent-yellow no-underline hover:underline">شرایط استفاده</a> و <a href="#" className="text-accent-yellow no-underline hover:underline">حریم خصوصی</a> موافقت می‌کنید.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function OrderPage() {
   const [step, setStep] = useState(0); // 0=category, 1=details, 2=contact, 3=done
@@ -258,231 +447,6 @@ export default function OrderPage() {
     }
   };
 
-  // ─── Step 0: Category ────────────────────────────────────────────────────
-  const StepCategory = () => (
-    <div>
-      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">چه نوع پروژه‌ای دارید؟</h2>
-      <p className="text-text-secondary mb-8">دسته‌بندی اصلی کارتان را انتخاب کنید. می‌توانید زیردسته‌های متعددی داشته باشید.</p>
-
-      {configError ? (
-        <div className="bg-[rgba(255,107,53,0.08)] border border-accent-orange/30 rounded-lg p-5 mb-6 text-center">
-          <p className="text-accent-orange text-[0.85rem] mb-3">⚠️ خطا در بارگذاری گزینه‌ها</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-[0.8rem] text-accent-yellow underline bg-transparent border-none cursor-pointer">
-            تلاش مجدد
-          </button>
-        </div>
-      ) : configLoading ? (
-        <ConfigSkeleton />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {categoriesWithSubtypes.map(cat => (
-              <CategoryCard key={cat.id} cat={cat} selected={selectedCategory === cat.id} onClick={id => {
-                setSelectedCategory(id);
-                setSelectedSubtypes([]); // زیردسته قبلی را پاک کن
-              }} />
-            ))}
-          </div>
-          {errors.category && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.category}</p>}
-
-          {currentCat && currentCat.subtypes.length > 0 && (
-            <div className="mt-6">
-              <p className="text-[0.85rem] text-text-muted mb-3">زیردسته‌های مرتبط (اختیاری):</p>
-              <div className="flex flex-wrap gap-2">
-                {currentCat.subtypes.map(sub => (
-                  <SubtypePill key={sub.id} item={sub} selected={selectedSubtypes.includes(sub.id)} onClick={toggleSubtype} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
-  // ─── Step 1: Details ─────────────────────────────────────────────────────
-  const StepDetails = () => (
-    <div>
-      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">جزئیات پروژه</h2>
-      <p className="text-text-secondary mb-8">هرچه بیشتر بنویسید، تخمین دقیق‌تری می‌گیرید.</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Budget */}
-        <div>
-          <label className="block text-[0.85rem] font-bold text-text-primary mb-3">بازه بودجه تقریبی</label>
-          {configLoading ? (
-            <div className="flex flex-col gap-2 animate-pulse">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {budgetOptions.map(b => (
-                <button key={b.id} onClick={() => setSelectedBudget(b.id)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
-                    ${selectedBudget === b.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
-                  {b.icon && <span>{b.icon}</span>}
-                  <span>{b.label}</span>
-                  {selectedBudget === b.id && <span className="mr-auto text-[0.75rem]">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-          {errors.budget && <p className="text-accent-orange text-[0.82rem] mt-2">{errors.budget}</p>}
-        </div>
-
-        {/* Timeline */}
-        <div>
-          <label className="block text-[0.85rem] font-bold text-text-primary mb-3">زمانبندی مورد نظر</label>
-          {configLoading ? (
-            <div className="flex flex-col gap-2 animate-pulse">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-12 rounded-lg bg-white/5 border border-border-default" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {timelineOptions.map(t => (
-                <button key={t.id} onClick={() => setSelectedTimeline(t.id)}
-                  className={`flex items-center justify-between px-4 py-3 rounded-lg border text-[0.85rem] font-semibold transition-all duration-200 cursor-pointer text-right
-                    ${selectedTimeline === t.id ? 'border-accent-yellow bg-[rgba(245,197,24,0.08)] text-accent-yellow' : 'border-border-default bg-bg-surface text-text-secondary hover:border-border-accent'}`}>
-                  <span>{t.label}</span>
-                  {selectedTimeline === t.id && <span className="text-[0.75rem]">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {(selectedBudget || selectedTimeline) && (
-            <div className="mt-4">
-              <PriceEstimator
-                selectedBudgetValue={selectedBudgetValue}
-                selectedTimelineValue={selectedTimelineValue}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Description */}
-      <div className="mb-6">
-        <label className="block text-[0.85rem] font-bold text-text-primary mb-3">توضیحات پروژه</label>
-        <textarea value={description} onChange={e => setDescription(e.target.value)}
-          placeholder="هرچه بیشتر درباره پروژه‌تان بنویسید: چه می‌خواهید؟ چه مشکلی را حل می‌کند؟ رقبا یا نمونه‌هایی که دوست دارید؟ ویژگی‌های ضروری؟"
-          dir="rtl" rows={5}
-          className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none resize-none transition-all duration-300 focus:border-accent-yellow focus:bg-[rgba(245,197,24,0.03)] placeholder:text-text-muted" />
-      </div>
-
-      {/* File Upload */}
-      <div>
-        <label className="block text-[0.85rem] font-bold text-text-primary mb-3">
-          فایل‌های مرجع <span className="text-text-muted font-normal">(اختیاری)</span>
-        </label>
-        <p className="text-[0.78rem] text-text-muted mb-3">اگر فایل مرجع، لوگو، رنگ‌بندی، وایرفریم یا هر چیز مرتبطی دارید آپلود کنید.</p>
-        <FileUploader files={files} setFiles={setFiles} />
-      </div>
-    </div>
-  );
-
-  // ─── Step 2: Contact ──────────────────────────────────────────────────────
-  const StepContact = () => (
-    <div>
-      <h2 className="text-[1.6rem] font-black text-text-primary mb-2">اطلاعات تماس</h2>
-      <p className="text-text-secondary mb-8">چگونه با شما در ارتباط باشیم؟</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-        <div>
-          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">نام و نام خانوادگی <span className="text-accent-orange">*</span></label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="علی محمدی"
-            dir="rtl" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
-          {errors.name && <p className="text-accent-orange text-[0.78rem] mt-1">{errors.name}</p>}
-        </div>
-
-        <div>
-          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">نام شرکت / برند <span className="text-text-muted font-normal">(اختیاری)</span></label>
-          <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="شرکت ..."
-            dir="rtl" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
-        </div>
-
-        <div>
-          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">شماره تماس <span className="text-accent-orange">*</span></label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="09123456789"
-            dir="ltr" type="tel" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
-        </div>
-
-        <div>
-          <label className="block text-[0.82rem] font-bold text-text-primary mb-2">ایمیل</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"
-            dir="ltr" type="email" className="w-full bg-bg-surface border border-border-default rounded-lg px-4 py-3.5 text-[0.9rem] font-vazir text-text-primary outline-none transition-all duration-300 focus:border-accent-yellow" />
-        </div>
-      </div>
-
-      {errors.contact && <p className="text-accent-orange text-[0.82rem] mb-4">{errors.contact}</p>}
-
-      {/* Summary */}
-      <div className="bg-bg-surface border border-border-default rounded-lg p-5 mb-6">
-        <h4 className="text-[0.85rem] font-black text-text-primary mb-4">خلاصه سفارش شما</h4>
-        <div className="flex flex-col gap-2.5 text-[0.82rem]">
-          {selectedCategory && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">نوع پروژه:</span>
-              <span className="text-text-primary font-semibold">{currentCat?.label}</span>
-            </div>
-          )}
-          {selectedSubtypes.length > 0 && (
-            <div className="flex justify-between items-start gap-4">
-              <span className="text-text-muted flex-shrink-0">جزئیات:</span>
-              <span className="text-text-primary font-semibold text-left">
-                {selectedSubtypes.map(sid =>
-                  currentCat?.subtypes.find(s => s.id === sid)?.label
-                ).filter(Boolean).join(' · ')}
-              </span>
-            </div>
-          )}
-          {selectedBudget && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">بودجه:</span>
-              <span className="text-accent-yellow font-bold">{budgetOptions.find(b => b.id === selectedBudget)?.label}</span>
-            </div>
-          )}
-          {selectedTimeline && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">زمانبندی:</span>
-              <span className="text-text-primary font-semibold">{timelineOptions.find(t => t.id === selectedTimeline)?.label}</span>
-            </div>
-          )}
-          {files.length > 0 && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">فایل‌های ضمیمه:</span>
-              <span className="text-text-primary font-semibold">{files.length} فایل</span>
-            </div>
-          )}
-        </div>
-        {(selectedBudget || selectedTimeline) && (
-          <div className="mt-4 pt-4 border-t border-border-default">
-            <PriceEstimator
-              selectedBudgetValue={selectedBudgetValue}
-              selectedTimelineValue={selectedTimelineValue}
-            />
-          </div>
-        )}
-      </div>
-
-      {errors.submit && (
-        <div className="bg-[rgba(255,107,53,0.1)] border border-accent-orange/30 rounded-lg p-4 mb-4">
-          <p className="text-accent-orange text-[0.85rem]">{errors.submit}</p>
-        </div>
-      )}
-
-      <p className="text-[0.78rem] text-text-muted">
-        با ثبت سفارش، با <a href="#" className="text-accent-yellow no-underline hover:underline">شرایط استفاده</a> و <a href="#" className="text-accent-yellow no-underline hover:underline">حریم خصوصی</a> موافقت می‌کنید.
-      </p>
-    </div>
-  );
-
   // ─── Step 3: Done ─────────────────────────────────────────────────────────
   const StepDone = () => (
     <div className="text-center py-10">
@@ -530,9 +494,60 @@ export default function OrderPage() {
         {step < 3 && <StepBar current={step} total={3} />}
 
         <div className="bg-bg-card border border-border-default rounded-xl p-8 md:p-10">
-          {step === 0 && <StepCategory />}
-          {step === 1 && <StepDetails />}
-          {step === 2 && <StepContact />}
+          {step === 0 && (
+            <StepCategory
+              categoriesWithSubtypes={categoriesWithSubtypes}
+              configError={configError}
+              configLoading={configLoading}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              selectedSubtypes={selectedSubtypes}
+              setSelectedSubtypes={setSelectedSubtypes}
+              toggleSubtype={toggleSubtype}
+              errors={errors}
+            />
+          )}
+          {step === 1 && (
+            <StepDetails
+              budgetOptions={budgetOptions}
+              timelineOptions={timelineOptions}
+              configLoading={configLoading}
+              selectedBudget={selectedBudget}
+              setSelectedBudget={setSelectedBudget}
+              selectedTimeline={selectedTimeline}
+              setSelectedTimeline={setSelectedTimeline}
+              selectedBudgetValue={selectedBudgetValue}
+              selectedTimelineValue={selectedTimelineValue}
+              description={description}
+              setDescription={setDescription}
+              files={files}
+              setFiles={setFiles}
+              errors={errors}
+            />
+          )}
+          {step === 2 && (
+            <StepContact
+              name={name}
+              setName={setName}
+              phone={phone}
+              setPhone={setPhone}
+              email={email}
+              setEmail={setEmail}
+              companyName={companyName}
+              setCompanyName={setCompanyName}
+              errors={errors}
+              selectedCategory={selectedCategory}
+              selectedSubtypes={selectedSubtypes}
+              selectedBudget={selectedBudget}
+              selectedTimeline={selectedTimeline}
+              files={files}
+              budgetOptions={budgetOptions}
+              timelineOptions={timelineOptions}
+              categoriesWithSubtypes={categoriesWithSubtypes}
+              selectedBudgetValue={selectedBudgetValue}
+              selectedTimelineValue={selectedTimelineValue}
+            />
+          )}
           {step === 3 && <StepDone />}
 
           {step < 3 && (
