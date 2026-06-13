@@ -1,8 +1,6 @@
 // src/components/layout/Navbar.jsx
 import { useState, useEffect, useRef } from 'react';
 import Logo from '../ui/Logo';
-import Button from '../ui/Button';
-import ArrowIcon from '../ui/ArrowIcon';
 import AuthModal from '../auth/AuthModal';
 import { NAV_LINKS } from '../../data/siteData';
 import { useAuth } from '../../context/AuthContext';
@@ -233,15 +231,6 @@ export default function Navbar() {
 
             {/* Right-side actions */}
             <div className="flex items-center gap-3">
-              <Button
-                href="/order"
-                onClick={(e) => handleNav(e, '/order')}
-                variant="primary"
-                className="hidden sm:inline-flex"
-              >
-                ثبت سفارش <ArrowIcon />
-              </Button>
-
               {/*
                 ── Auth area ────────────────────────────────────────────────
                 حالت ۱: در حال بارگذاری → placeholder بی‌رنگ (جلوی CLS رو می‌گیره)
@@ -304,15 +293,6 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-
-            <Button
-              href="/order"
-              onClick={(e) => handleNav(e, '/order')}
-              variant="primary"
-              className="w-full justify-center mt-2"
-            >
-              ثبت سفارش
-            </Button>
 
             {/* Auth در موبایل */}
             {isLoggedIn ? (
