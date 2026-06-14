@@ -494,6 +494,8 @@ export const getDashboardSummary = async (req, res, next) => {
       projectStats,
       recentProjects,
       downloadsCount,
+      ticketOpenCount,
+      recentTickets,
     ] = await Promise.all([
       // اطلاعات پایه کاربر
       prisma.user.findUnique({
@@ -567,6 +569,27 @@ export const getDashboardSummary = async (req, res, next) => {
           expiresAt: { gt: new Date() },
         },
       }),
+
+      // تعداد تیکت‌های باز
+      prisma.ticket.count({
+        where: { userId, status: { in: ['OPEN', 'ANSWERED', 'PENDING'] } },
+      }),
+
+      // ۳ تیکت اخیر
+      prisma.ticket.findMany({
+        where: { userId },
+        take: 3,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          ticketNumber: true,
+          subject: true,
+          status: true,
+          department: true,
+          priority: true,
+          updatedAt: true,
+        },
+      }),
     ]);
 
     // پردازش آمار سفارشات
@@ -614,6 +637,10 @@ export const getDashboardSummary = async (req, res, next) => {
         },
         downloads: {
           activeCount: downloadsCount,
+        },
+        tickets: {
+          openCount: ticketOpenCount,
+          recent: recentTickets,
         },
       },
     });

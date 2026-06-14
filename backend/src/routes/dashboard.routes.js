@@ -18,6 +18,8 @@ import {
 } from '../controllers/dashboard.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import validate from '../middleware/validate.js';
+import ticketRoutes from './ticket.routes.js';
+
 
 const router = Router();
 
@@ -151,5 +153,6 @@ router.post(
 
 // ─── خلاصه داشبورد ────────────────────────────────────────────────────────────
 router.get('/summary', getDashboardSummary);
+router.use('/tickets', ticketRoutes);
 
 export default router;

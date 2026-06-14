@@ -225,6 +225,17 @@ export const dashboardApi = {
   },
   getProjectById: (projectId) => request(`/dashboard/projects/${projectId}`),
   createProject:  (body)      => request('/dashboard/projects', { method: 'POST', body: JSON.stringify(body) }),
+
+  // تیکت‌ها
+  getTickets: (params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
+    const q = new URLSearchParams(clean).toString();
+    return request(`/dashboard/tickets${q ? `?${q}` : ''}`);
+  },
+  getTicketById:    (id)       => request(`/dashboard/tickets/${id}`),
+  createTicket:     (body)     => request('/dashboard/tickets',              { method: 'POST',  body: JSON.stringify(body) }),
+  addTicketMessage: (id, body) => request(`/dashboard/tickets/${id}/messages`, { method: 'POST',  body: JSON.stringify(body) }),
+  closeTicket:      (id)       => request(`/dashboard/tickets/${id}/close`,    { method: 'PATCH' }),
 };
 
 // ─── Project API (legacy — برای سازگاری با کد قدیمی) ──────────────────────────
@@ -366,4 +377,22 @@ export const adminApi = {
     }).then(r => r.json());
   },
   deleteFile: (filename) => request(`/upload/${filename}`, { method: 'DELETE' }),
+
+  // تیکت‌ها — ادمین
+  getTicketStats: () => request('/admin/tickets/stats'),
+  getTickets: (params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
+    const q = new URLSearchParams(clean).toString();
+    return request(`/admin/tickets${q ? `?${q}` : ''}`);
+  },
+  getTicketById:      (id)       => request(`/admin/tickets/${id}`),
+  addTicketMessage:   (id, body) => request(`/admin/tickets/${id}/messages`, { method: 'POST',  body: JSON.stringify(body) }),
+  updateTicket:       (id, body) => request(`/admin/tickets/${id}`,          { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // آپلود پیوست برای پاسخ ادمین به تیکت
+  uploadTicketFile: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return uploadRequest('/upload/ticket-file', fd);
+  },
 };

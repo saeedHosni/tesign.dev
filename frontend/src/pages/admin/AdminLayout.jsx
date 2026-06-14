@@ -20,6 +20,7 @@ export const ADMIN_NAV = [
   { id: 'services',  href: '/admin/services',  icon: '🛠️', label: 'خدمات' },
   { id: 'orders',    href: '/admin/orders',    icon: '💳', label: 'سفارشات' },
   { id: 'order-form-config', href: '/admin/order-form-config', icon: '📝', label: 'تنظیمات فرم سفارش' },
+  { id: 'tickets',   href: '/admin/tickets',   icon: '🎫', label: 'تیکت‌های پشتیبانی' },
   { id: 'projects',  href: '/admin/projects',  icon: '📋', label: 'درخواست‌های پروژه' },
   { id: 'reviews',   href: '/admin/reviews',   icon: '⭐', label: 'نظرات' },
   { id: 'coupons',   href: '/admin/coupons',   icon: '🏷️', label: 'کدهای تخفیف' },

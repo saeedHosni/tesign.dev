@@ -34,6 +34,7 @@ import {
   updatePriceEstimateRule, deletePriceEstimateRule,
 } from '../controllers/orderFormConfig.controller.js';
 import { protect, isAdmin, isSuperAdmin } from '../middleware/auth.middleware.js';
+import adminTicketRoutes from './adminTicket.routes.js';
 
 const router = Router();
 
@@ -52,6 +53,7 @@ router.get('/analytics',          getAnalytics);
 // ─── Orders ───────────────────────────────────────────────────────────────────
 router.get('/orders',             getOrders);
 router.patch('/orders/:id',       updateOrderStatus);
+router.use('/tickets', adminTicketRoutes);
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
 router.get('/reviews',            getReviews);

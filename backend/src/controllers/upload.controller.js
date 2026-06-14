@@ -81,3 +81,31 @@ export const uploadProjectFiles = async (req, res, next) => {
     next(error);
   }
 };
+
+// POST /api/upload/ticket-file  [Admin]
+// آپلود پیوست برای پاسخ ادمین به تیکت
+export const uploadTicketFile = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'فایلی آپلود نشد.' });
+    }
+
+    const baseUrl      = process.env.BASE_URL || 'http://localhost:5000';
+    const relativePath = `/uploads/ticket-files/${req.file.filename}`;
+
+    res.status(201).json({
+      success: true,
+      message: 'فایل پیوست آپلود شد.',
+      data: {
+        filename:     req.file.filename,
+        originalName: req.file.originalname,
+        path:         relativePath,
+        url:          `${baseUrl}${relativePath}`,
+        size:         req.file.size,
+        mimetype:     req.file.mimetype,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

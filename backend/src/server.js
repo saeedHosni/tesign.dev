@@ -23,6 +23,7 @@ import settingsRoutes        from './routes/settings.routes.js';
 import adminRoutes           from './routes/admin.routes.js';
 import uploadRoutes          from './routes/upload.routes.js';
 import dashboardRoutes       from './routes/dashboard.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
 import orderFormConfigRoutes from './routes/orderFormConfig.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 

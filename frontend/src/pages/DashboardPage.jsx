@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx — پنل کاربری کامل
+// src/pages/DashboardPage.jsx — پنل کاربری کامل + سیستم تیکت
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
@@ -55,6 +55,27 @@ const PROJECT_STATUS_MAP = {
   CLOSED:      { label: 'بسته شده',      cls: 'text-text-muted bg-white/5 border-border-default',        icon: '🔒' },
 };
 
+// وضعیت‌های تیکت
+const TICKET_STATUS_MAP = {
+  OPEN:     { label: 'باز',               cls: 'text-blue-400 bg-blue-400/10 border-blue-400/20',     icon: '🔵' },
+  ANSWERED: { label: 'پاسخ داده شده',    cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: '✅' },
+  PENDING:  { label: 'در انتظار کاربر',  cls: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: '⏳' },
+  CLOSED:   { label: 'بسته شده',         cls: 'text-text-muted bg-white/5 border-border-default',     icon: '🔒' },
+};
+
+const TICKET_PRIORITY_MAP = {
+  LOW:    { label: 'کم',     cls: 'text-text-muted bg-white/5 border-border-default' },
+  MEDIUM: { label: 'متوسط', cls: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' },
+  HIGH:   { label: 'زیاد',  cls: 'text-red-400 bg-red-400/10 border-red-400/20' },
+};
+
+const TICKET_DEPT_MAP = {
+  SUPPORT:   { label: 'پشتیبانی عمومی', icon: '🎧' },
+  TECHNICAL: { label: 'بخش فنی',        icon: '⚙️' },
+  SALES:     { label: 'بخش فروش',       icon: '💰' },
+  ORDER:     { label: 'درباره سفارش',   icon: '📦' },
+};
+
 function StatusBadge({ status, map }) {
   const s = (map || ORDER_STATUS_MAP)[status] || { label: status, cls: 'text-text-muted bg-white/5 border-border-default' };
   return <span className={`text-[0.73rem] font-semibold px-2.5 py-1 rounded-full border ${s.cls}`}>{s.label}</span>;
@@ -89,12 +110,13 @@ function SummaryTab({ user, onTabChange }) {
   const orders   = data?.orders   || {};
   const projects = data?.projects || {};
   const dl       = data?.downloads || {};
+  const tickets  = data?.tickets  || {};
 
   const stats = [
     { icon: '📦', label: 'کل سفارشات',   value: orders.summary?.total     ?? user?._count?.orders ?? 0,       color: 'text-blue-400',    onClick: () => onTabChange('orders')    },
     { icon: '✅', label: 'پرداخت شده',    value: orders.summary?.paid      ?? 0,                               color: 'text-emerald-400', onClick: () => onTabChange('orders')    },
     { icon: '📋', label: 'پروژه‌های من',  value: projects.summary?.total   ?? user?._count?.projectLeads ?? 0, color: 'text-purple-400',  onClick: () => onTabChange('projects')  },
-    { icon: '📥', label: 'دانلود فعال',   value: dl.activeCount            ?? 0,                               color: 'text-accent-yellow', onClick: () => onTabChange('downloads')},
+    { icon: '🎫', label: 'تیکت‌های باز',  value: tickets.openCount         ?? 0,                               color: 'text-accent-yellow', onClick: () => onTabChange('tickets') },
   ];
 
   return (
@@ -149,24 +171,24 @@ function SummaryTab({ user, onTabChange }) {
           )}
         </div>
 
-        {/* Recent projects */}
+        {/* Recent tickets */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold text-text-primary">آخرین پروژه‌ها</p>
-            <button onClick={() => onTabChange('projects')} className="text-xs text-accent-yellow hover:underline bg-transparent border-none cursor-pointer">مشاهده همه</button>
+            <p className="text-sm font-bold text-text-primary">آخرین تیکت‌ها</p>
+            <button onClick={() => onTabChange('tickets')} className="text-xs text-accent-yellow hover:underline bg-transparent border-none cursor-pointer">مشاهده همه</button>
           </div>
-          {(projects.recent?.length || 0) === 0 ? (
-            <p className="text-text-muted text-sm text-center py-6 bg-bg-base rounded-xl border border-border-default">پروژه‌ای ثبت نشده</p>
+          {(tickets.recent?.length || 0) === 0 ? (
+            <p className="text-text-muted text-sm text-center py-6 bg-bg-base rounded-xl border border-border-default">تیکتی ثبت نشده</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {projects.recent.map(p => (
-                <div key={p.id} className="flex items-center gap-3 bg-bg-base rounded-xl px-4 py-3 border border-border-default">
-                  <span className="text-lg">{p.service?.icon || '🚀'}</span>
+              {tickets.recent.map(t => (
+                <div key={t.id} className="flex items-center gap-3 bg-bg-base rounded-xl px-4 py-3 border border-border-default">
+                  <span className="text-lg">{TICKET_DEPT_MAP[t.department]?.icon || '🎫'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary font-medium truncate">{p.projectType || p.service?.title || 'پروژه'}</p>
-                    <p className="text-xs text-text-muted">{new Date(p.createdAt).toLocaleDateString('fa-IR')}</p>
+                    <p className="text-sm text-text-primary font-medium truncate">{t.subject}</p>
+                    <p className="text-xs text-text-muted">{t.ticketNumber}</p>
                   </div>
-                  <StatusBadge status={p.status} map={PROJECT_STATUS_MAP} />
+                  <StatusBadge status={t.status} map={TICKET_STATUS_MAP} />
                 </div>
               ))}
             </div>
@@ -176,9 +198,9 @@ function SummaryTab({ user, onTabChange }) {
 
       {/* Quick actions */}
       <div className="flex flex-wrap gap-3 pt-2 border-t border-border-default">
-        <Button variant="primary" onClick={() => onTabChange('new-project')}>➕ ثبت پروژه جدید</Button>
+        <Button variant="primary" onClick={() => onTabChange('new-ticket')}>🎫 ثبت تیکت جدید</Button>
+        <Button variant="ghost" onClick={() => onTabChange('new-project')}>➕ ثبت پروژه</Button>
         <Button variant="ghost" onClick={() => goTo('/shop')}>🛒 فروشگاه</Button>
-        <Button variant="ghost" onClick={() => goTo('/order')}>📋 صفحه ثبت سفارش</Button>
       </div>
     </div>
   );
@@ -292,7 +314,6 @@ function OrdersTab() {
 
   return (
     <>
-      {/* Filter tabs */}
       <div className="flex gap-2 mb-5">
         {[['all','همه'], ['paid','پرداخت شده'], ['unpaid','پرداخت نشده']].map(([v, l]) => (
           <button key={v} onClick={() => setFilter(v)}
@@ -483,7 +504,6 @@ function ProjectDetailModal({ project, onClose }) {
             </div>
           )}
 
-          {/* Status timeline hint */}
           <div className="bg-bg-base rounded-xl p-4 border border-border-default">
             <p className="text-text-muted text-xs mb-3">وضعیت پیگیری</p>
             <div className="flex items-center gap-2 flex-wrap">
@@ -600,7 +620,7 @@ function ProjectsTab({ onNewProject }) {
 // ── New Project Tab ───────────────────────────────────────────────────────────
 
 function NewProjectTab({ onSuccess }) {
-  const [step, setStep]             = useState(0); // 0=category, 1=details, 2=confirm
+  const [step, setStep]             = useState(0);
   const [category, setCategory]     = useState('');
   const [subtypes, setSubtypes]     = useState([]);
   const [budget, setBudget]         = useState('');
@@ -664,7 +684,6 @@ function NewProjectTab({ onSuccess }) {
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
-      {/* Step indicator */}
       <div className="flex items-center gap-2">
         {['نوع پروژه', 'جزئیات', 'تأیید نهایی'].map((label, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -677,7 +696,6 @@ function NewProjectTab({ onSuccess }) {
         ))}
       </div>
 
-      {/* Step 0: Category */}
       {step === 0 && (
         <div>
           <p className="text-sm text-text-muted mb-4">نوع خدمت مورد نیاز خود را انتخاب کنید</p>
@@ -714,10 +732,8 @@ function NewProjectTab({ onSuccess }) {
         </div>
       )}
 
-      {/* Step 1: Details */}
       {step === 1 && (
         <div className="flex flex-col gap-5">
-          {/* Budget */}
           <div>
             <p className="text-sm text-text-secondary mb-3">بودجه تقریبی</p>
             <div className="flex flex-wrap gap-2">
@@ -730,7 +746,6 @@ function NewProjectTab({ onSuccess }) {
             </div>
           </div>
 
-          {/* Timeline */}
           <div>
             <p className="text-sm text-text-secondary mb-3">بازه زمانی</p>
             <div className="flex flex-wrap gap-2">
@@ -743,7 +758,6 @@ function NewProjectTab({ onSuccess }) {
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="text-[0.82rem] font-medium text-text-secondary block mb-2">توضیحات پروژه <span className="text-text-muted font-normal">(اختیاری)</span></label>
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4} maxLength={2000}
@@ -752,7 +766,6 @@ function NewProjectTab({ onSuccess }) {
             <p className="text-[0.72rem] text-text-muted mt-1 text-left">{desc.length}/2000</p>
           </div>
 
-          {/* File upload */}
           <div>
             <p className="text-[0.82rem] font-medium text-text-secondary mb-2">فایل‌های مرجع <span className="text-text-muted font-normal">(اختیاری · حداکثر ۵ فایل)</span></p>
             <div onClick={() => fileRef.current?.click()} onDrop={e => { e.preventDefault(); handleFileAdd(e.dataTransfer.files); }} onDragOver={e => e.preventDefault()}
@@ -781,7 +794,6 @@ function NewProjectTab({ onSuccess }) {
         </div>
       )}
 
-      {/* Step 2: Confirm */}
       {step === 2 && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-text-muted">خلاصه درخواست شما — پیش از ثبت بررسی کنید</p>
@@ -845,6 +857,490 @@ function NewProjectTab({ onSuccess }) {
   );
 }
 
+// ── Ticket Thread (مکالمه تیکت) ───────────────────────────────────────────────
+
+function TicketMessage({ msg, currentUserId }) {
+  const isMe = msg.senderId === currentUserId;
+  const isAdmin = msg.senderRole === 'ADMIN' || msg.senderRole === 'MANAGER';
+
+  return (
+    <div className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+      {/* آواتار */}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isAdmin ? 'bg-accent-yellow/15 border border-accent-yellow/30 text-accent-yellow' : 'bg-white/8 border border-border-default text-text-muted'}`}>
+        {isAdmin ? '⚙' : msg.sender?.name?.charAt(0)?.toUpperCase() || '?'}
+      </div>
+
+      {/* بدنه پیام */}
+      <div className={`max-w-[75%] flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-[0.72rem] text-text-muted">
+            {isAdmin ? 'پشتیبانی' : (msg.sender?.name || 'شما')}
+          </span>
+          <span className="text-[0.68rem] text-text-muted/60">
+            {new Date(msg.createdAt).toLocaleString('fa-IR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+
+        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+          isAdmin
+            ? 'bg-accent-yellow/8 border border-accent-yellow/20 text-text-primary rounded-tr-sm'
+            : isMe
+              ? 'bg-white/8 border border-border-default text-text-primary rounded-tl-sm'
+              : 'bg-bg-base border border-border-default text-text-secondary rounded-tl-sm'
+        }`}>
+          <p className="whitespace-pre-wrap">{msg.body}</p>
+        </div>
+
+        {/* پیوست‌ها */}
+        {msg.attachments?.length > 0 && (
+          <div className="flex flex-col gap-1.5 w-full">
+            {msg.attachments.map((att, i) => (
+              <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-bg-base border border-border-default hover:border-accent-yellow/30 rounded-lg px-3 py-2 text-xs text-text-secondary hover:text-accent-yellow transition-colors">
+                <span>📎</span>
+                <span className="truncate flex-1">{att.originalName || att.filename}</span>
+                {att.size && <span className="text-text-muted flex-shrink-0">{(att.size / 1024).toFixed(0)} KB</span>}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TicketDetailView({ ticketId, user, onBack }) {
+  const [ticket, setTicket]     = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [err, setErr]           = useState('');
+  const [reply, setReply]       = useState('');
+  const [files, setFiles]       = useState([]);
+  const [sending, setSending]   = useState(false);
+  const [sendErr, setSendErr]   = useState('');
+  const [closing, setClosing]   = useState(false);
+  const fileRef  = useRef(null);
+  const bottomRef = useRef(null);
+
+  const load = () => {
+    setLoading(true);
+    dashboardApi.getTicketById(ticketId)
+      .then(res => setTicket(res.data))
+      .catch(e  => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [ticketId]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [ticket?.messages]);
+
+  const handleFileAdd = (incoming) => {
+    const arr = Array.from(incoming).filter(f => f.size < 10 * 1024 * 1024);
+    setFiles(prev => [...prev, ...arr].slice(0, 5));
+  };
+
+  const handleSend = async () => {
+    if (!reply.trim() && files.length === 0) return;
+    setSendErr(''); setSending(true);
+    try {
+      let attachments = [];
+      if (files.length > 0) {
+        const res = await uploadApi.projectFiles(files);
+        attachments = res.files || res.data || [];
+      }
+      await dashboardApi.addTicketMessage(ticketId, { body: reply.trim(), attachments });
+      setReply(''); setFiles([]);
+      load();
+    } catch (e) { setSendErr(e.message); }
+    finally { setSending(false); }
+  };
+
+  const handleClose = async () => {
+    setClosing(true);
+    try {
+      await dashboardApi.closeTicket(ticketId);
+      load();
+    } catch (e) { setSendErr(e.message); }
+    finally { setClosing(false); }
+  };
+
+  const isClosed = ticket?.status === 'CLOSED';
+
+  return (
+    <div className="flex flex-col gap-0 -mt-2">
+      {/* هدر تیکت */}
+      <div className="flex items-center gap-3 mb-5 pb-5 border-b border-border-default">
+        <button onClick={onBack}
+          className="w-8 h-8 rounded-lg bg-bg-base border border-border-default flex items-center justify-center text-text-muted hover:text-text-primary hover:border-border-accent transition-colors cursor-pointer flex-shrink-0">
+          →
+        </button>
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="h-4 w-48 bg-white/5 rounded animate-pulse" />
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-mono text-text-muted">{ticket?.ticketNumber}</span>
+                {ticket && <StatusBadge status={ticket.status} map={TICKET_STATUS_MAP} />}
+                {ticket && (
+                  <span className={`text-[0.7rem] font-semibold px-2 py-0.5 rounded-full border ${TICKET_PRIORITY_MAP[ticket.priority]?.cls}`}>
+                    {TICKET_PRIORITY_MAP[ticket.priority]?.label}
+                  </span>
+                )}
+              </div>
+              <p className="font-bold text-text-primary text-sm mt-0.5 truncate">{ticket?.subject}</p>
+            </>
+          )}
+        </div>
+        {ticket && !isClosed && (
+          <button onClick={handleClose} disabled={closing}
+            className="text-xs text-text-muted border border-border-default hover:border-red-400/30 hover:text-red-400 px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-transparent flex-shrink-0 disabled:opacity-50">
+            {closing ? '…' : 'بستن تیکت'}
+          </button>
+        )}
+      </div>
+
+      {loading && <div className="flex items-center justify-center gap-3 h-48 text-text-muted text-sm"><Spinner /> بارگذاری…</div>}
+      {err && <Alert>{err}</Alert>}
+
+      {/* مکالمه */}
+      {ticket && (
+        <>
+          <div className="flex flex-col gap-4 min-h-[200px] pb-4">
+            {ticket.messages?.map(msg => (
+              <TicketMessage key={msg.id} msg={msg} currentUserId={user?.id} />
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* فرم پاسخ */}
+          {isClosed ? (
+            <div className="mt-4 pt-4 border-t border-border-default bg-bg-base rounded-xl px-4 py-3 text-center">
+              <p className="text-text-muted text-sm">🔒 این تیکت بسته شده است</p>
+            </div>
+          ) : (
+            <div className="mt-4 pt-4 border-t border-border-default flex flex-col gap-3">
+              <textarea
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSend(); }}
+                rows={3}
+                placeholder="پیام خود را بنویسید… (Ctrl+Enter برای ارسال)"
+                className="w-full px-4 py-3 rounded-xl bg-bg-base border border-border-default text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent-yellow/50 transition-colors resize-none"
+              />
+
+              {files.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between bg-bg-base rounded-lg px-3 py-2">
+                      <span className="flex items-center gap-2 text-xs text-text-secondary"><span>📎</span><span className="truncate max-w-[180px]">{f.name}</span></span>
+                      <button onClick={() => setFiles(p => p.filter((_, j) => j !== i))} className="text-text-muted hover:text-red-400 bg-transparent border-none cursor-pointer text-xs">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {sendErr && <Alert>{sendErr}</Alert>}
+
+              <div className="flex items-center justify-between">
+                <button onClick={() => fileRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary border border-border-default hover:border-border-accent px-3 py-2 rounded-lg bg-transparent cursor-pointer transition-colors">
+                  📎 پیوست
+                </button>
+                <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.zip" className="hidden" onChange={e => handleFileAdd(e.target.files)} />
+                <Button variant="primary" onClick={handleSend} disabled={sending || (!reply.trim() && files.length === 0)}
+                  className="text-sm py-2 px-5">
+                  {sending ? <span className="flex items-center gap-2"><Spinner size={4} /> ارسال…</span> : 'ارسال پیام ↑'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Tickets Tab ────────────────────────────────────────────────────────────────
+
+function TicketsTab({ onNewTicket, user }) {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr]         = useState('');
+  const [filter, setFilter]   = useState('all');
+  const [openId, setOpenId]   = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    dashboardApi.getTickets({ limit: 50 })
+      .then(res => setTickets(res.data || []))
+      .catch(e  => setErr(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // اگر یه تیکت انتخاب شده، نمای thread رو نشون بده
+  if (openId) {
+    return <TicketDetailView ticketId={openId} user={user} onBack={() => { setOpenId(null); load(); }} />;
+  }
+
+  const filtered = filter === 'all'
+    ? tickets
+    : tickets.filter(t => t.status === filter);
+
+  if (loading) return <div className="flex items-center justify-center gap-3 h-32 text-text-muted text-sm"><Spinner /> بارگذاری…</div>;
+  if (err)     return <Alert>{err}</Alert>;
+
+  return (
+    <>
+      {/* هدر + دکمه جدید */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex gap-1.5 flex-wrap">
+          {[['all','همه'], ['OPEN','باز'], ['ANSWERED','پاسخ داده شده'], ['CLOSED','بسته']].map(([v, l]) => (
+            <button key={v} onClick={() => setFilter(v)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer bg-transparent ${filter === v ? 'border-accent-yellow/30 text-accent-yellow bg-accent-yellow/8' : 'border-border-default text-text-muted hover:text-text-primary'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <Button variant="primary" onClick={onNewTicket} className="text-sm py-2 px-4 flex-shrink-0">
+          + تیکت جدید
+        </Button>
+      </div>
+
+      {!filtered.length ? (
+        <EmptyState
+          emoji="🎫"
+          title={filter === 'all' ? 'هنوز تیکتی ثبت نکرده‌اید' : 'تیکتی با این وضعیت وجود ندارد'}
+          subtitle="برای ارتباط با پشتیبانی، تیکت جدید ثبت کنید"
+          btnLabel={null}
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map(t => {
+            const sm  = TICKET_STATUS_MAP[t.status]   || TICKET_STATUS_MAP.OPEN;
+            const dm  = TICKET_DEPT_MAP[t.department] || TICKET_DEPT_MAP.SUPPORT;
+            const pm  = TICKET_PRIORITY_MAP[t.priority] || TICKET_PRIORITY_MAP.MEDIUM;
+            const lastMsg = t.messages?.[0];
+            const isNew   = t.status === 'ANSWERED'; // پاسخ جدید دارد
+
+            return (
+              <button key={t.id} onClick={() => setOpenId(t.id)}
+                className={`w-full text-right border rounded-xl p-4 cursor-pointer transition-all duration-200 bg-transparent ${
+                  isNew
+                    ? 'border-accent-yellow/25 bg-accent-yellow/[0.03] hover:border-accent-yellow/40'
+                    : 'border-border-default hover:border-white/15'
+                }`}>
+                <div className="flex items-start gap-3">
+                  {/* آیکون دپارتمان */}
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${isNew ? 'bg-accent-yellow/10 border border-accent-yellow/25' : 'bg-bg-base border border-border-default'}`}>
+                    {dm.icon}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-xs font-mono text-text-muted">{t.ticketNumber}</span>
+                      <span className={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded-full border ${sm.cls}`}>{sm.label}</span>
+                      <span className={`text-[0.68rem] px-1.5 py-0.5 rounded-full border ${pm.cls}`}>{pm.label}</span>
+                      {isNew && <span className="text-[0.68rem] font-bold text-accent-yellow">● پاسخ جدید</span>}
+                    </div>
+                    <p className="font-semibold text-text-primary text-sm truncate">{t.subject}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-text-muted">{dm.label}</span>
+                      {lastMsg && (
+                        <span className="text-xs text-text-muted">
+                          · آخرین پیام {new Date(lastMsg.createdAt).toLocaleDateString('fa-IR')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <span className="text-text-muted text-xs flex-shrink-0">←</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── New Ticket Tab ─────────────────────────────────────────────────────────────
+
+function NewTicketTab({ onSuccess }) {
+  const [subject,    setSubject]    = useState('');
+  const [body,       setBody]       = useState('');
+  const [department, setDepartment] = useState('SUPPORT');
+  const [priority,   setPriority]   = useState('MEDIUM');
+  const [orderId,    setOrderId]    = useState('');
+  const [files,      setFiles]      = useState([]);
+  const [orders,     setOrders]     = useState([]);
+  const [loading,    setLoading]    = useState(false);
+  const [err,        setErr]        = useState('');
+  const [success,    setSuccess]    = useState(false);
+  const fileRef = useRef(null);
+
+  // برای دپارتمان ORDER لیست سفارشات رو می‌خوایم
+  useEffect(() => {
+    if (department === 'ORDER') {
+      dashboardApi.getOrders({ limit: 20, paymentStatus: 'PAID' })
+        .then(res => setOrders(res.data || []))
+        .catch(() => {});
+    }
+  }, [department]);
+
+  const handleFileAdd = (incoming) => {
+    const arr = Array.from(incoming).filter(f => f.size < 10 * 1024 * 1024);
+    setFiles(prev => [...prev, ...arr].slice(0, 5));
+  };
+
+  const handleSubmit = async () => {
+    if (!subject.trim()) { setErr('لطفاً موضوع تیکت را وارد کنید'); return; }
+    if (!body.trim())    { setErr('لطفاً متن پیام را وارد کنید'); return; }
+    if (body.trim().length < 10) { setErr('پیام باید حداقل ۱۰ کاراکتر باشد'); return; }
+    setErr(''); setLoading(true);
+    try {
+      let attachments = [];
+      if (files.length > 0) {
+        const res = await uploadApi.projectFiles(files);
+        attachments = res.files || res.data || [];
+      }
+      await dashboardApi.createTicket({
+        subject: subject.trim(),
+        body: body.trim(),
+        department,
+        priority,
+        orderId: orderId || undefined,
+        attachments,
+      });
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); onSuccess(); }, 2000);
+    } catch (e) { setErr(e.message || 'خطا در ثبت تیکت'); }
+    finally { setLoading(false); }
+  };
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <div className="w-16 h-16 rounded-full bg-emerald-400/15 border-2 border-emerald-400/30 flex items-center justify-center text-3xl">🎫</div>
+        <p className="font-bold text-text-primary text-lg">تیکت با موفقیت ثبت شد!</p>
+        <p className="text-text-muted text-sm text-center max-w-xs">تیم پشتیبانی ما در اسرع وقت پاسخ خواهد داد.</p>
+      </div>
+    );
+  }
+
+  const DEPTS = [
+    { id: 'SUPPORT',   icon: '🎧', label: 'پشتیبانی عمومی', desc: 'سوالات کلی' },
+    { id: 'TECHNICAL', icon: '⚙️', label: 'بخش فنی',        desc: 'مشکلات فنی' },
+    { id: 'SALES',     icon: '💰', label: 'بخش فروش',       desc: 'خرید و قیمت' },
+    { id: 'ORDER',     icon: '📦', label: 'درباره سفارش',   desc: 'پیگیری سفارش' },
+  ];
+
+  const PRIORITIES = [
+    { id: 'LOW',    label: 'کم',    cls: 'border-border-default text-text-muted' },
+    { id: 'MEDIUM', label: 'متوسط', cls: 'border-yellow-400/30 text-yellow-400' },
+    { id: 'HIGH',   label: 'زیاد',  cls: 'border-red-400/30 text-red-400' },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 max-w-2xl">
+      <p className="text-sm text-text-muted -mt-2">برای ارتباط با تیم ما تیکت ثبت کنید. معمولاً ظرف چند ساعت پاسخ می‌دهیم.</p>
+
+      {/* انتخاب دپارتمان */}
+      <div>
+        <p className="text-[0.82rem] font-medium text-text-secondary mb-3">بخش مورد نظر</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {DEPTS.map(d => (
+            <button key={d.id} onClick={() => { setDepartment(d.id); setOrderId(''); }}
+              className={`p-3 rounded-xl border text-right cursor-pointer transition-all ${department === d.id ? 'border-accent-yellow/40 bg-accent-yellow/8' : 'border-border-default bg-bg-base hover:border-white/15'}`}>
+              <div className="text-xl mb-1">{d.icon}</div>
+              <p className={`text-xs font-bold ${department === d.id ? 'text-accent-yellow' : 'text-text-primary'}`}>{d.label}</p>
+              <p className="text-[0.68rem] text-text-muted mt-0.5">{d.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* انتخاب سفارش (فقط برای ORDER) */}
+      {department === 'ORDER' && (
+        <div>
+          <label className="text-[0.82rem] font-medium text-text-secondary block mb-2">سفارش مرتبط <span className="text-text-muted font-normal">(اختیاری)</span></label>
+          <select value={orderId} onChange={e => setOrderId(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-bg-base border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-yellow/50 transition-colors cursor-pointer">
+            <option value="">انتخاب سفارش (اختیاری)</option>
+            {orders.map(o => (
+              <option key={o.id} value={o.id}>{o.orderNumber} — {Math.round((o.finalAmount || 0) / 10).toLocaleString('fa-IR')} تومان</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* اولویت */}
+      <div>
+        <p className="text-[0.82rem] font-medium text-text-secondary mb-3">اولویت</p>
+        <div className="flex gap-2">
+          {PRIORITIES.map(p => (
+            <button key={p.id} onClick={() => setPriority(p.id)}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium cursor-pointer transition-all ${priority === p.id ? `${p.cls} bg-white/5` : 'border-border-default text-text-muted hover:text-text-primary bg-transparent'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* موضوع */}
+      <div>
+        <label className="text-[0.82rem] font-medium text-text-secondary block mb-2">موضوع <span className="text-red-400">*</span></label>
+        <input value={subject} onChange={e => setSubject(e.target.value)} maxLength={200}
+          placeholder="خلاصه‌ای از مشکل یا سوال خود..."
+          className="w-full px-4 py-3 rounded-xl bg-bg-base border border-border-default text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent-yellow/50 transition-colors" />
+        <p className="text-[0.7rem] text-text-muted mt-1 text-left">{subject.length}/200</p>
+      </div>
+
+      {/* متن پیام */}
+      <div>
+        <label className="text-[0.82rem] font-medium text-text-secondary block mb-2">پیام <span className="text-red-400">*</span></label>
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} maxLength={5000}
+          placeholder="جزئیات مشکل یا سوال خود را بنویسید. هرچه دقیق‌تر توضیح دهید، سریع‌تر پاسخ می‌گیرید."
+          className="w-full px-4 py-3 rounded-xl bg-bg-base border border-border-default text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-accent-yellow/50 transition-colors resize-none" />
+        <p className="text-[0.7rem] text-text-muted mt-1 text-left">{body.length}/5000</p>
+      </div>
+
+      {/* پیوست فایل */}
+      <div>
+        <p className="text-[0.82rem] font-medium text-text-secondary mb-2">فایل پیوست <span className="text-text-muted font-normal">(اختیاری · حداکثر ۵ فایل)</span></p>
+        <div onClick={() => fileRef.current?.click()}
+          onDrop={e => { e.preventDefault(); handleFileAdd(e.dataTransfer.files); }}
+          onDragOver={e => e.preventDefault()}
+          className="border-2 border-dashed border-border-default rounded-xl p-5 text-center cursor-pointer hover:border-border-accent hover:bg-white/[0.02] transition-all">
+          <div className="text-2xl mb-1.5">📎</div>
+          <p className="text-[0.82rem] text-text-secondary">فایل‌ها را اینجا رها کنید یا کلیک کنید</p>
+          <p className="text-[0.7rem] text-text-muted mt-1">PNG, JPG, PDF, ZIP · هر فایل تا ۱۰MB</p>
+        </div>
+        <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.zip" className="hidden" onChange={e => handleFileAdd(e.target.files)} />
+        {files.length > 0 && (
+          <div className="mt-3 flex flex-col gap-2">
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center justify-between bg-bg-base rounded-lg px-3 py-2.5">
+                <span className="flex items-center gap-2 text-xs text-text-secondary"><span>📄</span><span className="truncate max-w-[200px]">{f.name}</span></span>
+                <button onClick={() => setFiles(p => p.filter((_, j) => j !== i))} className="text-text-muted hover:text-red-400 bg-transparent border-none cursor-pointer text-xs">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {err && <Alert>{err}</Alert>}
+
+      <div className="flex justify-end pt-2 border-t border-border-default">
+        <Button variant="primary" onClick={handleSubmit} disabled={loading} className="px-8">
+          {loading ? <span className="flex items-center gap-2"><Spinner size={4} /> در حال ثبت…</span> : '🎫 ثبت تیکت'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Profile Tab ───────────────────────────────────────────────────────────────
 
 function ProfileTab() {
@@ -869,7 +1365,6 @@ function ProfileTab() {
 
   return (
     <div className="flex flex-col gap-8 max-w-md">
-      {/* Avatar block */}
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-full bg-accent-yellow/15 border-2 border-accent-yellow/30 flex items-center justify-center text-3xl font-black text-accent-yellow select-none">
           {user?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -918,7 +1413,6 @@ function ProfileTab() {
 // ── Security Tab ──────────────────────────────────────────────────────────────
 
 function SecurityTab() {
-  // Password change
   const [cur, setCur]         = useState('');
   const [next, setNext]       = useState('');
   const [conf, setConf]       = useState('');
@@ -926,7 +1420,6 @@ function SecurityTab() {
   const [pwMsg, setPwMsg]     = useState('');
   const [pwErr, setPwErr]     = useState('');
 
-  // Email change
   const [newEmail, setNewEmail] = useState('');
   const [emailPw, setEmailPw]   = useState('');
   const [emLoading, setEmLoad]  = useState(false);
@@ -968,7 +1461,6 @@ function SecurityTab() {
 
   return (
     <div className="flex flex-col gap-8 max-w-md">
-      {/* Change password */}
       <div>
         <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">🔒 تغییر رمز عبور</h3>
         <div className="flex flex-col gap-4">
@@ -983,7 +1475,6 @@ function SecurityTab() {
         </div>
       </div>
 
-      {/* Change email */}
       <div className="pt-6 border-t border-border-default">
         <h3 className="text-sm font-bold text-text-primary mb-1 flex items-center gap-2">✉️ تغییر ایمیل</h3>
         <p className="text-text-muted text-xs mb-4">برای تأیید هویت، رمز عبور فعلی نیاز است.</p>
@@ -1008,13 +1499,15 @@ function SecurityTab() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'summary',     icon: '🏠', label: 'خلاصه' },
-  { id: 'orders',      icon: '🛒', label: 'سفارشات فروشگاه' },
-  { id: 'projects',    icon: '🚀', label: 'پروژه‌های من' },
-  { id: 'new-project', icon: '➕', label: 'ثبت پروژه جدید' },
-  { id: 'downloads',   icon: '📥', label: 'دانلودها' },
-  { id: 'profile',     icon: '👤', label: 'اطلاعات پروفایل' },
-  { id: 'security',    icon: '🔒', label: 'امنیت حساب' },
+  { id: 'summary',     icon: '🏠', label: 'خلاصه',            group: 'account' },
+  { id: 'orders',      icon: '🛒', label: 'سفارشات فروشگاه',  group: 'shop' },
+  { id: 'downloads',   icon: '📥', label: 'دانلودها',          group: 'shop' },
+  { id: 'projects',    icon: '🚀', label: 'پروژه‌های من',      group: 'projects' },
+  { id: 'new-project', icon: '➕', label: 'ثبت پروژه جدید',   group: 'projects' },
+  { id: 'tickets',     icon: '🎫', label: 'تیکت‌های پشتیبانی', group: 'support' },
+  { id: 'new-ticket',  icon: '📝', label: 'ثبت تیکت جدید',    group: 'support' },
+  { id: 'profile',     icon: '👤', label: 'اطلاعات پروفایل',  group: 'account' },
+  { id: 'security',    icon: '🔒', label: 'امنیت حساب',        group: 'account' },
 ];
 
 function LoginPrompt() {
@@ -1079,17 +1572,22 @@ export default function DashboardPage() {
               </div>
 
               <p className="text-[0.68rem] font-bold text-text-muted px-4 pt-2 pb-1 uppercase tracking-widest">فروشگاه</p>
-              {TABS.filter(t => ['orders', 'downloads'].includes(t.id)).map(t => (
+              {TABS.filter(t => t.group === 'shop').map(t => (
                 <SideTab key={t.id} active={tab === t.id} onClick={() => setTab(t.id)} icon={t.icon} label={t.label} />
               ))}
 
               <p className="text-[0.68rem] font-bold text-text-muted px-4 pt-3 pb-1 uppercase tracking-widest">پروژه‌ها</p>
-              {TABS.filter(t => ['projects', 'new-project'].includes(t.id)).map(t => (
+              {TABS.filter(t => t.group === 'projects').map(t => (
+                <SideTab key={t.id} active={tab === t.id} onClick={() => setTab(t.id)} icon={t.icon} label={t.label} />
+              ))}
+
+              <p className="text-[0.68rem] font-bold text-text-muted px-4 pt-3 pb-1 uppercase tracking-widest">پشتیبانی</p>
+              {TABS.filter(t => t.group === 'support').map(t => (
                 <SideTab key={t.id} active={tab === t.id} onClick={() => setTab(t.id)} icon={t.icon} label={t.label} />
               ))}
 
               <p className="text-[0.68rem] font-bold text-text-muted px-4 pt-3 pb-1 uppercase tracking-widest">حساب کاربری</p>
-              {TABS.filter(t => ['summary', 'profile', 'security'].includes(t.id)).map(t => (
+              {TABS.filter(t => t.group === 'account').map(t => (
                 <SideTab key={t.id} active={tab === t.id} onClick={() => setTab(t.id)} icon={t.icon} label={t.label} />
               ))}
 
@@ -1118,6 +1616,8 @@ export default function DashboardPage() {
               {tab === 'projects'    && <ProjectsTab onNewProject={() => setTab('new-project')} />}
               {tab === 'new-project' && <NewProjectTab onSuccess={() => setTab('projects')} />}
               {tab === 'downloads'   && <DownloadsTab />}
+              {tab === 'tickets'     && <TicketsTab onNewTicket={() => setTab('new-ticket')} user={user} />}
+              {tab === 'new-ticket'  && <NewTicketTab onSuccess={() => setTab('tickets')} />}
               {tab === 'profile'     && <ProfileTab />}
               {tab === 'security'    && <SecurityTab />}
             </Card>

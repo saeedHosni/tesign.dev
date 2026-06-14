@@ -5,14 +5,16 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import { rateLimit } from 'express-rate-limit';
-import { uploadImage, deleteFile, uploadProjectFiles } from '../controllers/upload.controller.js';
+import { uploadImage, deleteFile, uploadProjectFiles, uploadTicketFile } from '../controllers/upload.controller.js';
 import { protect, isAdmin } from '../middleware/auth.middleware.js';
 
 // Ensure uploads directories exist
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 const projectFilesDir = path.join(uploadDir, 'project-files');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const ticketFilesDir  = path.join(uploadDir, 'ticket-files');
+if (!fs.existsSync(uploadDir))       fs.mkdirSync(uploadDir,       { recursive: true });
 if (!fs.existsSync(projectFilesDir)) fs.mkdirSync(projectFilesDir, { recursive: true });
+if (!fs.existsSync(ticketFilesDir))  fs.mkdirSync(ticketFilesDir,  { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -92,6 +94,43 @@ router.post(
   projectFilesLimiter,
   uploadProjectFile.array('files', 5),
   uploadProjectFiles
+);
+
+// ─── آپلود پیوست تیکت (فقط ادمین) ────────────────────────────────────────────
+const ticketFileStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, ticketFilesDir),
+  filename:    (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+
+const ticketFileFilter = (_req, file, cb) => {
+  const allowedMimes = [
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
+    'application/pdf', 'application/zip', 'application/x-zip-compressed',
+  ];
+  const allowedExts = ['.jpg','.jpeg','.png','.webp','.gif','.svg','.pdf','.zip'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('فرمت این فایل پشتیبانی نمی‌شود.'), false);
+  }
+};
+
+const uploadTicketFileMw = multer({
+  storage:    ticketFileStorage,
+  fileFilter: ticketFileFilter,
+  limits: { fileSize: Number(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 },
+});
+
+router.post(
+  '/ticket-file',
+  protect,
+  isAdmin,
+  uploadTicketFileMw.single('file'),
+  uploadTicketFile
 );
 
 export default router;

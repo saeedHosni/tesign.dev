@@ -33,6 +33,7 @@ import AdminUsersPage       from './pages/admin/AdminUsersPage';
 import AdminSettingsPage    from './pages/admin/AdminSettingsPage';
 import { AdminProjectsPage, AdminReviewsPage, AdminCouponsPage } from './pages/admin/AdminMiscPages';
 import AdminOrderFormConfigPage from './pages/admin/AdminOrderFormConfigPage';
+import AdminTicketsPage         from './pages/admin/AdminTicketsPage';
 
 function HomePage() {
   useScrollReveal();
@@ -60,6 +61,7 @@ function AdminRouter({ path }) {
   if (path.startsWith('/admin/reviews'))               return <AdminReviewsPage />;
   if (path.startsWith('/admin/coupons'))               return <AdminCouponsPage />;
   if (path.startsWith('/admin/order-form-config'))     return <AdminOrderFormConfigPage />;
+  if (path.startsWith('/admin/tickets'))               return <AdminTicketsPage />;
   return <AdminOverviewPage />;
 }
 

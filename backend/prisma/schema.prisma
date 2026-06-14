@@ -27,12 +27,14 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  orders        Order[]
-  projectLeads  ProjectLead[]
-  reviews       Review[]
-  tokens        RefreshToken[]
-  cart          Cart?
-  wishlist      WishlistItem[]
+  orders         Order[]
+  projectLeads   ProjectLead[]
+  reviews        Review[]
+  tokens         RefreshToken[]
+  cart           Cart?
+  wishlist       WishlistItem[]
+  tickets        Ticket[]
+  ticketMessages TicketMessage[]
 
   @@map("users")
 }
@@ -284,6 +286,7 @@ model Order {
 
   items     OrderItem[]
   downloads OrderDownload[]
+  tickets   Ticket[]
 
   @@index([userId])
   @@index([status])
@@ -566,4 +569,83 @@ model PriceEstimateRule {
   @@index([timelineOptionId])
   @@index([isActive])
   @@map("price_estimate_rules")
+}
+
+// ─── TICKET SYSTEM ────────────────────────────────────────────────────────────
+
+enum TicketDepartment {
+  SUPPORT
+  TECHNICAL
+  SALES
+  ORDER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  PENDING
+  CLOSED
+}
+
+model Ticket {
+  id           String           @id @default(uuid())
+  ticketNumber String           @unique
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId      String?
+  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  department   TicketDepartment @default(SUPPORT)
+  priority     TicketPriority   @default(MEDIUM)
+  status       TicketStatus     @default(OPEN)
+  subject      String
+  assignedTo   String?
+  closedAt     DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([orderId])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderRole String
+  body       String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  attachments TicketAttachment[]
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id           String        @id @default(uuid())
+  messageId    String
+  message      TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename     String
+  originalName String?
+  url          String
+  mimetype     String?
+  size         Int?
+  createdAt    DateTime      @default(now())
+
+  @@index([messageId])
+  @@map("ticket_attachments")
 }
