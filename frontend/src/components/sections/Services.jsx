@@ -1,6 +1,5 @@
 // src/components/sections/Services.jsx
 import SectionLabel from '../ui/SectionLabel';
-import Button from '../ui/Button';
 import ArrowIcon from '../ui/ArrowIcon';
 import { useServices } from '../../hooks/useServices';
 
@@ -27,7 +26,6 @@ function ServiceCard({ service, delay = 0 }) {
 
 export default function Services() {
   const { services, loading } = useServices();
-  const navServices = (e) => { e.preventDefault(); window.history.pushState({}, '', '/services'); window.dispatchEvent(new PopStateEvent('popstate')); window.scrollTo({ top: 0 }); };
 
   return (
     <section id="services" className="py-24 bg-bg-base">
@@ -40,7 +38,6 @@ export default function Services() {
             </h2>
             <p className="mt-3.5 text-[1rem] text-text-secondary max-w-[520px]">از ایده تا اجرا، هر آنچه برای حضور قدرتمند در فضای دیجیتال نیاز دارید.</p>
           </div>
-          <Button href="/services" onClick={navServices} variant="outline" className="hidden md:inline-flex">مشاهده همه خدمات</Button>
         </div>
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

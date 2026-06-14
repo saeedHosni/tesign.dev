@@ -15,7 +15,6 @@ import ProjectBanner from './components/sections/ProjectBanner';
 
 // Public pages
 import ShopPage          from './pages/ShopPage';
-import ServicesPage      from './pages/ServicesPage';
 import OrderPage         from './pages/OrderPage';
 import AboutPage         from './pages/AboutPage';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -89,7 +88,6 @@ function Router() {
   const publicPage = (() => {
     switch (path) {
       case '/shop':      return <ShopPage />;
-      case '/services':  return <ServicesPage />;
       case '/order':     return <OrderPage />;
       case '/about':     return <AboutPage />;
       case '/checkout':  return <CheckoutPage />;

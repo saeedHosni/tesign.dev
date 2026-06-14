@@ -2,7 +2,6 @@
 
 export const NAV_LINKS = [
   { href: '/',         label: 'خانه',       page: true },
-  { href: '/services', label: 'خدمات',      page: true },
   { href: '/shop',     label: 'فروشگاه',    page: true },
   { href: '/order',    label: 'ثبت سفارش',  page: true },
   { href: '/about',    label: 'درباره ما',   page: true },

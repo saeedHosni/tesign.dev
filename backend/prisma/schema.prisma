@@ -1,5 +1,5 @@
 // prisma/schema.prisma
-// DigiTeam - Full Backend Schema
+// Tesign.Team - Full Backend Schema
 // PostgreSQL
 
 generator client {
@@ -65,6 +65,8 @@ model Service {
   category    String
   title       String
   description String?
+  linkText    String?  // متن دکمه/لینک — مثال: «مشاوره رایگان»
+  price       String?  // قیمت نمایشی — مثال: «از ۵ میلیون تومان»
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -73,6 +75,8 @@ model Service {
   features    ServiceFeature[]
   projectLeads ProjectLead[]
 
+  @@index([isActive])
+  @@index([sortOrder])
   @@map("services")
 }
 

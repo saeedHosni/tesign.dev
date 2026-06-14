@@ -112,7 +112,10 @@ export const productApi = {
 };
 
 export const serviceApi = {
+  // عمومی — فقط سرویس‌های فعال
   getAll:    ()     => request('/services'),
+  // ادمین — همه سرویس‌ها (فعال + غیرفعال)
+  getAllAdmin: ()    => request('/services?admin=1'),
   getBySlug: (slug) => request(`/services/${slug}`),
 };
 
@@ -254,9 +257,11 @@ export const adminApi = {
   deleteProductImage: (productId, imageId) => request(`/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' }),
 
   // Services
-  createService: (body)     => request('/services',       { method: 'POST', body: JSON.stringify(body) }),
-  updateService: (id, body) => request(`/services/${id}`, { method: 'PUT',  body: JSON.stringify(body) }),
-  deleteService: (id)       => request(`/services/${id}`, { method: 'DELETE' }),
+  createService: (body)     => request('/services',              { method: 'POST',  body: JSON.stringify(body) }),
+  updateService: (id, body) => request(`/services/${id}`,        { method: 'PUT',   body: JSON.stringify(body) }),
+  deleteService: (id, hard = false) => request(`/services/${id}${hard ? '?hard=1' : ''}`, { method: 'DELETE' }),
+  toggleService: (id)       => request(`/services/${id}/toggle`, { method: 'PATCH' }),
+  reorderServices: (items)  => request('/services/reorder',      { method: 'PATCH', body: JSON.stringify({ items }) }),
 
   // Orders
   getAllOrders: (params = {}) => {
