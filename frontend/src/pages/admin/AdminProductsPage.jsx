@@ -8,6 +8,9 @@ import {
 } from './AdminUI';
 import { adminApi, productApi } from '../../services/api';
 import AdminProductContentManager from './AdminProductContentManager';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+import { useRef } from 'react';
 
 const BADGE_OPTIONS = ['', 'bestseller', 'new', 'featured'];
 const BADGE_LABELS  = { '': 'بدون برچسب', bestseller: 'پرفروش', new: 'جدید', featured: 'پیشنهادی' };
@@ -112,11 +115,64 @@ function ProductImagesManager({ product, showToast, onChange }) {
     </FormField>
   );
 }
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ align: [] }],          // راست‌چین، وسط، چپ‌چین
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['link', 'image'],        // لینک و عکس
+    ['clean'],
+  ],
+};
+
+const quillFormats = [
+  'header', 'bold', 'italic', 'underline', 'strike',
+  'align', 'list', 'bullet', 'link', 'image',
+];
 
 function ProductForm({ initial, categories, onSave, onClose, saving, showToast }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
+  const quillRef = useRef(null);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const imageHandler = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const res = await adminApi.uploadImage(file);
+        const url = (res.data || res.file || res).url;
+        if (!url) throw new Error('آپلود ناموفق');
+
+        const editor = quillRef.current?.getEditor();
+        const range = editor?.getSelection(true);
+        editor?.insertEmbed(range?.index ?? 0, 'image', url);
+        showToast('تصویر اضافه شد');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+    input.click();
+  };
+
+    const modules = {
+    toolbar: {
+      container: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ align: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link', 'image'],
+        ['clean'],
+      ],
+      handlers: { image: imageHandler },
+    },
+  };
 
   const handleNameChange = (v) => {
     set('name', v);
@@ -187,7 +243,17 @@ function ProductForm({ initial, categories, onSave, onClose, saving, showToast }
       </FormField>
 
       <FormField label="توضیحات">
-        <Textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="توضیح کامل محصول…" />
+        <div className="quill-rtl-wrapper">
+          <ReactQuill
+            ref={quillRef}
+            theme="snow"
+            value={form.description || ''}
+            onChange={(val) => set('description', val)}
+            modules={modules}        // ← این به جای quillModules خارجی
+            formats={quillFormats}
+            placeholder="توضیح کامل محصول…"
+          />
+        </div>
       </FormField>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

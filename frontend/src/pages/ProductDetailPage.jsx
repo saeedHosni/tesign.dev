@@ -349,9 +349,12 @@ function ProductTabs({ product }) {
         {active === 'description' && (
           <div className="max-w-[760px]">
             {product.description ? (
-              <div className="text-text-secondary leading-[2] text-[0.9rem] whitespace-pre-wrap">{product.description}</div>
+                <div
+                    className="text-text-secondary leading-[2] text-[0.9rem] prose-description"
+                    dangerouslySetInnerHTML={{__html: product.description}}
+                />
             ) : (
-              <div className="text-center py-16 text-text-muted text-sm">توضیحاتی ثبت نشده است.</div>
+                <div className="text-center py-16 text-text-muted text-sm">توضیحاتی ثبت نشده است.</div>
             )}
           </div>
         )}
