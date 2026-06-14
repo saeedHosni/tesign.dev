@@ -24,6 +24,7 @@ import adminRoutes           from './routes/admin.routes.js';
 import uploadRoutes          from './routes/upload.routes.js';
 import dashboardRoutes       from './routes/dashboard.routes.js';
 import orderFormConfigRoutes from './routes/orderFormConfig.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const app = express();
 
@@ -101,6 +102,7 @@ app.use('/api/admin',        adminRoutes);
 app.use('/api/upload',       uploadRoutes);
 app.use('/api/dashboard',    dashboardRoutes);
 app.use('/api/order-config', orderFormConfigRoutes); // public — گزینه‌های فعال فرم سفارش
+app.use('/api/payment', paymentRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);

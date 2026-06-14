@@ -1,9 +1,11 @@
 // src/pages/CheckoutPage.jsx
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 import SectionLabel from '../components/ui/SectionLabel';
+import AuthModal from '../components/auth/AuthModal';
 
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:5000/api';
 
@@ -18,20 +20,15 @@ function navigate(path) {
 function CartItemRow({ item, onUpdate, onRemove }) {
   return (
     <div className="flex items-center gap-4 py-4 border-b border-border-default last:border-0">
-      {/* Icon */}
       <div className="w-12 h-12 bg-bg-surface border border-border-default rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
         {item.icon}
       </div>
-
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="font-bold text-text-primary text-sm truncate">{item.name}</div>
         <div className="text-text-muted text-xs mt-0.5">
           {Number(item.price).toLocaleString('fa-IR')} تومان
         </div>
       </div>
-
-      {/* Qty */}
       <div className="flex items-center gap-1 bg-bg-surface border border-border-default rounded-lg overflow-hidden flex-shrink-0">
         <button
           onClick={() => item.quantity > 1 ? onUpdate(item.itemId, item.quantity - 1) : onRemove(item.itemId)}
@@ -41,16 +38,12 @@ function CartItemRow({ item, onUpdate, onRemove }) {
           onClick={() => onUpdate(item.itemId, item.quantity + 1)}
           className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-accent-yellow hover:bg-white/5 transition-colors cursor-pointer font-bold">+</button>
       </div>
-
-      {/* Subtotal */}
       <div className="text-right flex-shrink-0 min-w-[80px]">
         <div className="grad-text font-black text-sm">
           {(Number(item.price) * item.quantity).toLocaleString('fa-IR')}
         </div>
         <div className="text-text-muted text-[0.65rem]">تومان</div>
       </div>
-
-      {/* Remove */}
       <button
         onClick={() => onRemove(item.itemId)}
         className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-red-400 transition-colors cursor-pointer flex-shrink-0">✕</button>
@@ -62,7 +55,7 @@ function CartItemRow({ item, onUpdate, onRemove }) {
 
 function CouponField({ onApply }) {
   const [code, setCode]       = useState('');
-  const [status, setStatus]   = useState(null); // null | 'ok' | 'err'
+  const [status, setStatus]   = useState(null);
   const [message, setMessage] = useState('');
 
   async function apply() {
@@ -116,32 +109,36 @@ function CouponField({ onApply }) {
   );
 }
 
-// ── Order success ─────────────────────────────────────────────────────────────
+// ── Login prompt (کاربر لاگین نیست) ──────────────────────────────────────────
 
-function OrderSuccess({ orderNumber }) {
+function LoginPrompt({ onLoginClick }) {
+  return (
+    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+        <span>⚠️</span>
+        <span>برای پرداخت باید وارد حساب کاربری شوید</span>
+      </div>
+      <p className="text-text-muted text-xs leading-relaxed">
+        پس از ورود، به صفحه پرداخت هدایت خواهید شد.
+      </p>
+      <button
+        onClick={onLoginClick}
+        className="w-full py-2.5 grad-bg text-[#111] font-black text-sm rounded-lg hover:opacity-90 transition-opacity cursor-pointer">
+        ورود / ثبت‌نام
+      </button>
+    </div>
+  );
+}
+
+// ── Redirecting to gateway ────────────────────────────────────────────────────
+
+function RedirectingScreen() {
   return (
     <div className="min-h-screen pt-[72px] flex items-center justify-center px-6">
-      <div className="text-center max-w-[440px]">
-        <div className="w-20 h-20 grad-bg rounded-full flex items-center justify-center text-[2.5rem] mx-auto mb-6 shadow-[0_0_40px_rgba(245,197,24,0.3)]">
-          ✓
-        </div>
-        <h2 className="text-2xl font-black text-text-primary mb-2">سفارش ثبت شد!</h2>
-        {orderNumber && (
-          <p className="text-accent-yellow font-bold text-sm mb-3">شماره سفارش: {orderNumber}</p>
-        )}
-        <p className="text-text-muted text-sm mb-8">
-          سفارش شما با موفقیت ثبت شد. پس از تأیید پرداخت، لینک دانلود برای شما ارسال خواهد شد.
-        </p>
-        <div className="flex flex-col gap-3">
-          <Button variant="primary" onClick={() => navigate('/shop')} className="w-full justify-center">
-            ادامه خرید <ArrowIcon />
-          </Button>
-          <button
-            onClick={() => navigate('/')}
-            className="text-text-muted hover:text-text-secondary text-sm transition-colors cursor-pointer">
-            بازگشت به صفحه اصلی
-          </button>
-        </div>
+      <div className="text-center max-w-[360px]">
+        <div className="w-20 h-20 border-4 border-accent-yellow/30 border-t-accent-yellow rounded-full animate-spin mx-auto mb-6" />
+        <h2 className="text-xl font-black text-text-primary mb-2">در حال انتقال به درگاه پرداخت</h2>
+        <p className="text-text-muted text-sm">لطفاً صبر کنید...</p>
       </div>
     </div>
   );
@@ -151,11 +148,13 @@ function OrderSuccess({ orderNumber }) {
 
 export default function CheckoutPage() {
   const { items, updateItem, removeItem, clearCart, totalPrice } = useCart();
+  const { isLoggedIn } = useAuth();
+
   const [coupon, setCoupon]         = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [orderDone, setOrderDone]   = useState(false);
-  const [orderNumber, setOrderNumber] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
   const [formErr, setFormErr]       = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // ── Coupon discount calc ───────────────────────────────────────────────────
   let discount = 0;
@@ -168,37 +167,42 @@ export default function CheckoutPage() {
   }
   const finalPrice = totalPrice - discount;
 
-  // ── Place order ────────────────────────────────────────────────────────────
-  async function placeOrder() {
+  // ── Go to payment gateway ─────────────────────────────────────────────────
+  async function goToPayment() {
     if (items.length === 0) return;
+
+    // اگه لاگین نیست → AuthModal
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+
     setSubmitting(true);
     setFormErr('');
+
     try {
       const token = localStorage.getItem('tesign_token');
-      const body  = { couponCode: coupon?.code };
+      const res = await fetch(`${API_BASE}/payment/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ couponCode: coupon?.code }),
+      });
 
-      if (token) {
-        // Authenticated: POST /orders (creates from server-side cart)
-        const res = await fetch(`${API_BASE}/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (res.ok && data.order) {
-          setOrderNumber(data.order.orderNumber || data.order.id);
-          await clearCart();
-          setOrderDone(true);
-          return;
-        }
-        setFormErr(data.message || 'خطا در ثبت سفارش');
-      } else {
-        // Guest: simulate local order
-        const fakeNum = `DT-LOCAL-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
+      const data = await res.json();
+
+      if (res.ok && data.redirectUrl) {
+        // سبد رو پاک کن (بک‌اند قبلاً پاک کرده، فقط state فرانت)
         await clearCart();
-        setOrderNumber(fakeNum);
-        setOrderDone(true);
+        setRedirecting(true);
+        // redirect به زرین‌پال
+        window.location.href = data.redirectUrl;
+        return;
       }
+
+      setFormErr(data.message || 'خطا در اتصال به درگاه پرداخت');
     } catch {
       setFormErr('خطا در اتصال به سرور. لطفاً دوباره تلاش کنید.');
     } finally {
@@ -206,8 +210,10 @@ export default function CheckoutPage() {
     }
   }
 
-  if (orderDone) return <OrderSuccess orderNumber={orderNumber} />;
+  // ── Redirecting loading screen ────────────────────────────────────────────
+  if (redirecting) return <RedirectingScreen />;
 
+  // ── Empty cart ────────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
       <div className="min-h-screen pt-[72px] flex flex-col items-center justify-center text-center px-6">
@@ -220,100 +226,115 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen pt-[72px]" dir="rtl">
+    <>
+      {showAuthModal && (
+        <AuthModal
+          initialMode="login"
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
 
-      {/* Header */}
-      <div className="border-b border-border-default bg-bg-surface py-10">
-        <div className="w-full max-w-[1100px] mx-auto px-6">
-          <SectionLabel>تسویه حساب</SectionLabel>
-          <h1 className="text-[clamp(1.8rem,3.5vw,2.4rem)] font-black leading-[1.3]">
-            سبد خرید <span className="grad-text">شما</span>
-          </h1>
-        </div>
-      </div>
+      <div className="min-h-screen pt-[72px]" dir="rtl">
 
-      <div className="w-full max-w-[1100px] mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 items-start">
-
-        {/* Cart items */}
-        <div className="bg-bg-card border border-border-default rounded-xl p-6">
-          <h2 className="font-black text-text-primary mb-4 text-lg">
-            محصولات ({items.length.toLocaleString('fa-IR')})
-          </h2>
-          <div>
-            {items.map(item => (
-              <CartItemRow
-                key={item.itemId}
-                item={item}
-                onUpdate={updateItem}
-                onRemove={removeItem}
-              />
-            ))}
+        {/* Header */}
+        <div className="border-b border-border-default bg-bg-surface py-10">
+          <div className="w-full max-w-[1100px] mx-auto px-6">
+            <SectionLabel>تسویه حساب</SectionLabel>
+            <h1 className="text-[clamp(1.8rem,3.5vw,2.4rem)] font-black leading-[1.3]">
+              سبد خرید <span className="grad-text">شما</span>
+            </h1>
           </div>
-          <button
-            onClick={() => navigate('/shop')}
-            className="mt-5 text-text-muted hover:text-accent-yellow text-sm transition-colors cursor-pointer">
-            ← ادامه خرید
-          </button>
         </div>
 
-        {/* Summary sidebar */}
-        <div className="flex flex-col gap-4 lg:sticky lg:top-24">
+        <div className="w-full max-w-[1100px] mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 items-start">
 
-          {/* Coupon */}
-          <div className="bg-bg-card border border-border-default rounded-xl p-5">
-            <h3 className="font-bold text-text-primary text-sm mb-3">کد تخفیف</h3>
-            <CouponField onApply={c => setCoupon(c)} />
-          </div>
-
-          {/* Order summary */}
-          <div className="bg-bg-card border border-border-default rounded-xl p-5">
-            <h3 className="font-bold text-text-primary mb-4">خلاصه سفارش</h3>
-
-            <div className="flex flex-col gap-2.5 text-sm">
-              <div className="flex justify-between text-text-secondary">
-                <span>جمع محصولات</span>
-                <span>{totalPrice.toLocaleString('fa-IR')} تومان</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-green-400">
-                  <span>تخفیف</span>
-                  <span>−{discount.toLocaleString('fa-IR')} تومان</span>
-                </div>
-              )}
-              <div className="h-px bg-border-default my-1" />
-              <div className="flex justify-between font-black text-base">
-                <span className="text-text-primary">مبلغ نهایی</span>
-                <div className="text-right">
-                  <div className="grad-text">{finalPrice.toLocaleString('fa-IR')}</div>
-                  <div className="text-text-muted text-xs font-normal">تومان</div>
-                </div>
-              </div>
+          {/* Cart items */}
+          <div className="bg-bg-card border border-border-default rounded-xl p-6">
+            <h2 className="font-black text-text-primary mb-4 text-lg">
+              محصولات ({items.length.toLocaleString('fa-IR')})
+            </h2>
+            <div>
+              {items.map(item => (
+                <CartItemRow
+                  key={item.itemId}
+                  item={item}
+                  onUpdate={updateItem}
+                  onRemove={removeItem}
+                />
+              ))}
             </div>
-
-            {formErr && (
-              <p className="text-red-400 text-xs mt-3 p-2 bg-red-400/10 rounded-md">{formErr}</p>
-            )}
-
             <button
-              onClick={placeOrder}
-              disabled={submitting}
-              className={`w-full mt-5 py-3.5 rounded-sm font-black font-vazir text-sm transition-all duration-300 cursor-pointer
-                ${submitting
-                  ? 'bg-white/10 text-text-muted cursor-wait'
-                  : 'grad-bg text-[#111] hover:shadow-[0_0_28px_rgba(245,197,24,0.4)] hover:scale-[1.01]'
-                }`}>
-              {submitting ? 'در حال ثبت سفارش...' : '✓ ثبت سفارش و پرداخت'}
+              onClick={() => navigate('/shop')}
+              className="mt-5 text-text-muted hover:text-accent-yellow text-sm transition-colors cursor-pointer">
+              ← ادامه خرید
             </button>
-
-            {/* Trust */}
-            <div className="flex items-center justify-center gap-1.5 mt-3 text-text-muted text-xs">
-              <span>🔒</span>
-              <span>پرداخت امن و رمزنگاری‌شده</span>
-            </div>
           </div>
 
+          {/* Summary sidebar */}
+          <div className="flex flex-col gap-4 lg:sticky lg:top-24">
+
+            {/* Coupon */}
+            <div className="bg-bg-card border border-border-default rounded-xl p-5">
+              <h3 className="font-bold text-text-primary text-sm mb-3">کد تخفیف</h3>
+              <CouponField onApply={c => setCoupon(c)} />
+            </div>
+
+            {/* Order summary */}
+            <div className="bg-bg-card border border-border-default rounded-xl p-5">
+              <h3 className="font-bold text-text-primary mb-4">خلاصه سفارش</h3>
+
+              <div className="flex flex-col gap-2.5 text-sm">
+                <div className="flex justify-between text-text-secondary">
+                  <span>جمع محصولات</span>
+                  <span>{totalPrice.toLocaleString('fa-IR')} تومان</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-400">
+                    <span>تخفیف</span>
+                    <span>−{discount.toLocaleString('fa-IR')} تومان</span>
+                  </div>
+                )}
+                <div className="h-px bg-border-default my-1" />
+                <div className="flex justify-between font-black text-base">
+                  <span className="text-text-primary">مبلغ نهایی</span>
+                  <div className="text-right">
+                    <div className="grad-text">{finalPrice.toLocaleString('fa-IR')}</div>
+                    <div className="text-text-muted text-xs font-normal">تومان</div>
+                  </div>
+                </div>
+              </div>
+
+              {formErr && (
+                <p className="text-red-400 text-xs mt-3 p-2 bg-red-400/10 rounded-md">{formErr}</p>
+              )}
+
+              {/* اگه لاگین نیست → prompt لاگین، وگرنه → دکمه پرداخت */}
+              {!isLoggedIn ? (
+                <div className="mt-4">
+                  <LoginPrompt onLoginClick={() => setShowAuthModal(true)} />
+                </div>
+              ) : (
+                <button
+                  onClick={goToPayment}
+                  disabled={submitting}
+                  className={`w-full mt-5 py-3.5 rounded-sm font-black font-vazir text-sm transition-all duration-300 cursor-pointer
+                    ${submitting
+                      ? 'bg-white/10 text-text-muted cursor-wait'
+                      : 'grad-bg text-[#111] hover:shadow-[0_0_28px_rgba(245,197,24,0.4)] hover:scale-[1.01]'
+                    }`}>
+                  {submitting ? 'در حال اتصال به درگاه...' : '✓ پرداخت آنلاین'}
+                </button>
+              )}
+
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-text-muted text-xs">
+                <span>🔒</span>
+                <span>پرداخت امن از طریق زرین‌پال</span>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

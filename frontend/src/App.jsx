@@ -20,6 +20,7 @@ import AboutPage         from './pages/AboutPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CheckoutPage      from './pages/CheckoutPage';
 import DashboardPage     from './pages/DashboardPage';
+import PaymentCallbackPage from './pages/PaymentCallbackPage';
 
 // Admin pages
 import AdminOverviewPage    from './pages/admin/AdminOverviewPage';
@@ -92,6 +93,7 @@ function Router() {
       case '/about':     return <AboutPage />;
       case '/checkout':  return <CheckoutPage />;
       case '/dashboard': return <DashboardPage />;
+      case '/payment/callback': return <PaymentCallbackPage />;
       default:           return <HomePage />;
     }
   })();
