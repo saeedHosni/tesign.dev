@@ -1,4 +1,5 @@
-// src/pages/CheckoutPage.jsx
+// src/pages/CheckoutPage.jsx  ← ShoppingPage (سبد خرید)
+// این صفحه فقط سبد خرید است — بعد از تأیید، کاربر به /payment می‌رود
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -6,8 +7,6 @@ import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 import SectionLabel from '../components/ui/SectionLabel';
 import AuthModal from '../components/auth/AuthModal';
-
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:5000/api';
 
 function navigate(path) {
   window.history.pushState({}, '', path);
@@ -51,72 +50,14 @@ function CartItemRow({ item, onUpdate, onRemove }) {
   );
 }
 
-// ── Coupon field ──────────────────────────────────────────────────────────────
-
-function CouponField({ onApply }) {
-  const [code, setCode]       = useState('');
-  const [status, setStatus]   = useState(null);
-  const [message, setMessage] = useState('');
-
-  async function apply() {
-    if (!code.trim()) return;
-    try {
-      const token = localStorage.getItem('tesign_token');
-      const res = await fetch(`${API_BASE}/coupons/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ code: code.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok && data.coupon) {
-        setStatus('ok');
-        setMessage(`کد تخفیف اعمال شد: ${data.coupon.discountValue}${data.coupon.discountType === 'PERCENTAGE' ? '%' : ' تومان'} تخفیف`);
-        onApply(data.coupon);
-      } else {
-        setStatus('err');
-        setMessage(data.message || 'کد نامعتبر است');
-      }
-    } catch {
-      setStatus('err');
-      setMessage('خطا در اتصال به سرور');
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex gap-2">
-        <input
-          value={code}
-          onChange={e => { setCode(e.target.value); setStatus(null); }}
-          onKeyDown={e => e.key === 'Enter' && apply()}
-          placeholder="کد تخفیف دارید؟"
-          dir="ltr"
-          className="flex-1 bg-bg-surface border border-border-default rounded-lg px-3 py-2.5 text-[0.85rem] font-vazir text-text-primary outline-none focus:border-accent-yellow transition-colors placeholder:text-text-muted text-left"
-        />
-        <button
-          onClick={apply}
-          className="px-4 py-2.5 bg-white/5 border border-border-default text-text-secondary hover:text-accent-yellow hover:border-border-accent rounded-lg text-sm font-bold font-vazir transition-all cursor-pointer">
-          اعمال
-        </button>
-      </div>
-      {status && (
-        <p className={`text-xs px-1 ${status === 'ok' ? 'text-green-400' : 'text-red-400'}`}>{message}</p>
-      )}
-    </div>
-  );
-}
-
-// ── Login prompt (کاربر لاگین نیست) ──────────────────────────────────────────
+// ── Login prompt ──────────────────────────────────────────────────────────────
 
 function LoginPrompt({ onLoginClick }) {
   return (
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 flex flex-col gap-3">
       <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
         <span>⚠️</span>
-        <span>برای پرداخت باید وارد حساب کاربری شوید</span>
+        <span>برای ادامه باید وارد حساب کاربری شوید</span>
       </div>
       <p className="text-text-muted text-xs leading-relaxed">
         پس از ورود، به صفحه پرداخت هدایت خواهید شد.
@@ -130,88 +71,12 @@ function LoginPrompt({ onLoginClick }) {
   );
 }
 
-// ── Redirecting to gateway ────────────────────────────────────────────────────
-
-function RedirectingScreen() {
-  return (
-    <div className="min-h-screen pt-[72px] flex items-center justify-center px-6">
-      <div className="text-center max-w-[360px]">
-        <div className="w-20 h-20 border-4 border-accent-yellow/30 border-t-accent-yellow rounded-full animate-spin mx-auto mb-6" />
-        <h2 className="text-xl font-black text-text-primary mb-2">در حال انتقال به درگاه پرداخت</h2>
-        <p className="text-text-muted text-sm">لطفاً صبر کنید...</p>
-      </div>
-    </div>
-  );
-}
-
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function CheckoutPage() {
-  const { items, updateItem, removeItem, clearCart, totalPrice } = useCart();
+  const { items, updateItem, removeItem, totalPrice } = useCart();
   const { isLoggedIn } = useAuth();
-
-  const [coupon, setCoupon]         = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
-  const [formErr, setFormErr]       = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
-
-  // ── Coupon discount calc ───────────────────────────────────────────────────
-  let discount = 0;
-  if (coupon) {
-    if (coupon.discountType === 'PERCENTAGE') {
-      discount = Math.round(totalPrice * coupon.discountValue / 100);
-    } else {
-      discount = Math.min(coupon.discountValue, totalPrice);
-    }
-  }
-  const finalPrice = totalPrice - discount;
-
-  // ── Go to payment gateway ─────────────────────────────────────────────────
-  async function goToPayment() {
-    if (items.length === 0) return;
-
-    // اگه لاگین نیست → AuthModal
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    setSubmitting(true);
-    setFormErr('');
-
-    try {
-      const token = localStorage.getItem('tesign_token');
-      const res = await fetch(`${API_BASE}/payment/request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ couponCode: coupon?.code }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.redirectUrl) {
-        // سبد رو پاک کن (بک‌اند قبلاً پاک کرده، فقط state فرانت)
-        await clearCart();
-        setRedirecting(true);
-        // redirect به زرین‌پال
-        window.location.href = data.redirectUrl;
-        return;
-      }
-
-      setFormErr(data.message || 'خطا در اتصال به درگاه پرداخت');
-    } catch {
-      setFormErr('خطا در اتصال به سرور. لطفاً دوباره تلاش کنید.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  // ── Redirecting loading screen ────────────────────────────────────────────
-  if (redirecting) return <RedirectingScreen />;
 
   // ── Empty cart ────────────────────────────────────────────────────────────
   if (items.length === 0) {
@@ -239,7 +104,7 @@ export default function CheckoutPage() {
         {/* Header */}
         <div className="border-b border-border-default bg-bg-surface py-10">
           <div className="w-full max-w-[1100px] mx-auto px-6">
-            <SectionLabel>تسویه حساب</SectionLabel>
+            <SectionLabel>خرید</SectionLabel>
             <h1 className="text-[clamp(1.8rem,3.5vw,2.4rem)] font-black leading-[1.3]">
               سبد خرید <span className="grad-text">شما</span>
             </h1>
@@ -273,12 +138,6 @@ export default function CheckoutPage() {
           {/* Summary sidebar */}
           <div className="flex flex-col gap-4 lg:sticky lg:top-24">
 
-            {/* Coupon */}
-            <div className="bg-bg-card border border-border-default rounded-xl p-5">
-              <h3 className="font-bold text-text-primary text-sm mb-3">کد تخفیف</h3>
-              <CouponField onApply={c => setCoupon(c)} />
-            </div>
-
             {/* Order summary */}
             <div className="bg-bg-card border border-border-default rounded-xl p-5">
               <h3 className="font-bold text-text-primary mb-4">خلاصه سفارش</h3>
@@ -288,48 +147,28 @@ export default function CheckoutPage() {
                   <span>جمع محصولات</span>
                   <span>{totalPrice.toLocaleString('fa-IR')} تومان</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-green-400">
-                    <span>تخفیف</span>
-                    <span>−{discount.toLocaleString('fa-IR')} تومان</span>
-                  </div>
-                )}
                 <div className="h-px bg-border-default my-1" />
                 <div className="flex justify-between font-black text-base">
-                  <span className="text-text-primary">مبلغ نهایی</span>
+                  <span className="text-text-primary">مبلغ کل</span>
                   <div className="text-right">
-                    <div className="grad-text">{finalPrice.toLocaleString('fa-IR')}</div>
+                    <div className="grad-text">{totalPrice.toLocaleString('fa-IR')}</div>
                     <div className="text-text-muted text-xs font-normal">تومان</div>
                   </div>
                 </div>
               </div>
 
-              {formErr && (
-                <p className="text-red-400 text-xs mt-3 p-2 bg-red-400/10 rounded-md">{formErr}</p>
-              )}
-
-              {/* اگه لاگین نیست → prompt لاگین، وگرنه → دکمه پرداخت */}
+              {/* اگه لاگین نیست → prompt لاگین، وگرنه → دکمه ادامه */}
               {!isLoggedIn ? (
                 <div className="mt-4">
                   <LoginPrompt onLoginClick={() => setShowAuthModal(true)} />
                 </div>
               ) : (
                 <button
-                  onClick={goToPayment}
-                  disabled={submitting}
-                  className={`w-full mt-5 py-3.5 rounded-sm font-black font-vazir text-sm transition-all duration-300 cursor-pointer
-                    ${submitting
-                      ? 'bg-white/10 text-text-muted cursor-wait'
-                      : 'grad-bg text-[#111] hover:shadow-[0_0_28px_rgba(245,197,24,0.4)] hover:scale-[1.01]'
-                    }`}>
-                  {submitting ? 'در حال اتصال به درگاه...' : '✓ پرداخت آنلاین'}
+                  onClick={() => navigate('/payment')}
+                  className="w-full mt-5 py-3.5 rounded-sm font-black font-vazir text-sm transition-all duration-300 cursor-pointer grad-bg text-[#111] hover:shadow-[0_0_28px_rgba(245,197,24,0.4)] hover:scale-[1.01]">
+                  ادامه و تکمیل سفارش ←
                 </button>
               )}
-
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-text-muted text-xs">
-                <span>🔒</span>
-                <span>پرداخت امن از طریق زرین‌پال</span>
-              </div>
             </div>
 
           </div>

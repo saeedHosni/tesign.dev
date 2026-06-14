@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import Button from '../components/ui/Button';
 import ArrowIcon from '../components/ui/ArrowIcon';
 
@@ -90,6 +91,7 @@ function FailScreen({ message }) {
 
 export default function PaymentCallbackPage() {
   const { isLoggedIn } = useAuth();
+  const { clearCart } = useCart();
   const [state, setState] = useState('loading'); // loading | success | fail
   const [result, setResult] = useState(null);
 
@@ -129,6 +131,7 @@ export default function PaymentCallbackPage() {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
+          clearCart();
           setState('success');
           setResult(data);
         } else {

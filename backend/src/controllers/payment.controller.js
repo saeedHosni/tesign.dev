@@ -61,7 +61,7 @@ async function validateCoupon(couponCode, totalAmount) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const requestPayment = async (req, res, next) => {
   try {
-    const { couponCode, notes } = req.body;
+    const { couponCode, notes, customerInfo } = req.body;
     const userId = req.user.id;
 
     // ── ۱. سبد خرید ──────────────────────────────────────────────────────────
@@ -129,6 +129,7 @@ export const requestPayment = async (req, res, next) => {
           couponCode: couponCode?.toUpperCase() || null,
           notes,
           paymentMethod: 'zarinpal',
+          metadata: customerInfo ? { customerInfo } : undefined,
           items: { create: orderItems },
         },
       });
@@ -139,9 +140,6 @@ export const requestPayment = async (req, res, next) => {
           data:  { usageCount: { increment: 1 } },
         });
       }
-
-      // سبد رو پاک کن
-      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
       return newOrder;
     });
@@ -290,13 +288,19 @@ export const verifyPayment = async (req, res, next) => {
           paymentStatus: 'PAID',
           status:        'COMPLETED',
           paymentRef:    String(refId),
-          metadata:      { authority, refId, cardPan },
+          metadata:      { ...(order.metadata || {}), authority, refId, cardPan },
           paidAt:        new Date(),
         },
       });
 
       if (downloads.length > 0)
         await tx.orderDownload.createMany({ data: downloads });
+
+      // سبد رو پاک کن — فقط بعد از پرداخت موفق
+      const userCart = await tx.cart.findUnique({ where: { userId: order.userId } });
+      if (userCart) {
+        await tx.cartItem.deleteMany({ where: { cartId: userCart.id } });
+      }
 
       for (const item of order.items) {
         const upd = { totalSales: { increment: item.quantity } };

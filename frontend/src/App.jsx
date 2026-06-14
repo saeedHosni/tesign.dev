@@ -19,6 +19,7 @@ import OrderPage         from './pages/OrderPage';
 import AboutPage         from './pages/AboutPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CheckoutPage      from './pages/CheckoutPage';
+import PaymentPage       from './pages/PaymentPage';
 import DashboardPage     from './pages/DashboardPage';
 import PaymentCallbackPage from './pages/PaymentCallbackPage';
 
@@ -92,6 +93,7 @@ function Router() {
       case '/order':     return <OrderPage />;
       case '/about':     return <AboutPage />;
       case '/checkout':  return <CheckoutPage />;
+      case '/payment':   return <PaymentPage />;
       case '/dashboard': return <DashboardPage />;
       case '/payment/callback': return <PaymentCallbackPage />;
       default:           return <HomePage />;
