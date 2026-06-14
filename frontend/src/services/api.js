@@ -109,6 +109,22 @@ export const productApi = {
   getFeatured:   ()     => request('/products/featured'),
   getCategories: ()     => request('/products/categories'),
   getBySlug:     (slug) => request(`/products/${slug}`),
+  getRelated:    (slug) => request(`/products/${slug}/related`),
+
+  // ── Features ──
+  getFeatures: (productId) => request(`/products/${productId}/features`),
+
+  // ── FAQs ──
+  getFaqs: (productId) => request(`/products/${productId}/faqs`),
+
+  // ── Changelogs (paginated) ──
+  getChangelogs: (productId, params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/products/${productId}/changelogs${q ? `?${q}` : ''}`);
+  },
+
+  // ── Stats ──
+  getStats: (productId) => request(`/products/${productId}/stats`),
 };
 
 export const serviceApi = {
@@ -255,6 +271,39 @@ export const adminApi = {
   // Product Images
   addProductImage:    (productId, body)    => request(`/admin/products/${productId}/images`,             { method: 'POST',   body: JSON.stringify(body) }),
   deleteProductImage: (productId, imageId) => request(`/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' }),
+
+  // ── Product Content: Features ──
+  getProductFeatures:    (productId)             => request(`/products/${productId}/features`),
+  createProductFeature:  (productId, body)       => request(`/products/${productId}/features`,              { method: 'POST',   body: JSON.stringify(body) }),
+  updateProductFeature:  (productId, id, body)   => request(`/products/${productId}/features/${id}`,        { method: 'PUT',    body: JSON.stringify(body) }),
+  deleteProductFeature:  (productId, id)         => request(`/products/${productId}/features/${id}`,        { method: 'DELETE' }),
+  reorderProductFeatures: (productId, items)     => request(`/products/${productId}/features/reorder`,      { method: 'PATCH',  body: JSON.stringify({ items }) }),
+
+  // ── Product Content: FAQs ──
+  getProductFaqs:    (productId)             => request(`/products/${productId}/faqs`),
+  createProductFaq:  (productId, body)       => request(`/products/${productId}/faqs`,              { method: 'POST',   body: JSON.stringify(body) }),
+  updateProductFaq:  (productId, id, body)   => request(`/products/${productId}/faqs/${id}`,        { method: 'PUT',    body: JSON.stringify(body) }),
+  deleteProductFaq:  (productId, id)         => request(`/products/${productId}/faqs/${id}`,        { method: 'DELETE' }),
+  reorderProductFaqs: (productId, items)     => request(`/products/${productId}/faqs/reorder`,      { method: 'PATCH',  body: JSON.stringify({ items }) }),
+
+  // ── Product Content: Changelogs ──
+  getProductChangelogs:    (productId, params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/products/${productId}/changelogs${q ? `?${q}` : ''}`);
+  },
+  createProductChangelog:  (productId, body)     => request(`/products/${productId}/changelogs`,            { method: 'POST',   body: JSON.stringify(body) }),
+  updateProductChangelog:  (productId, id, body) => request(`/products/${productId}/changelogs/${id}`,       { method: 'PUT',    body: JSON.stringify(body) }),
+  deleteProductChangelog:  (productId, id)       => request(`/products/${productId}/changelogs/${id}`,       { method: 'DELETE' }),
+
+  // ── Product Content: Stats ──
+  getProductStats:    (productId)             => request(`/products/${productId}/stats`),
+  createProductStat:  (productId, body)       => request(`/products/${productId}/stats`,              { method: 'POST',   body: JSON.stringify(body) }),
+  updateProductStat:  (productId, id, body)   => request(`/products/${productId}/stats/${id}`,        { method: 'PUT',    body: JSON.stringify(body) }),
+  deleteProductStat:  (productId, id)         => request(`/products/${productId}/stats/${id}`,        { method: 'DELETE' }),
+  reorderProductStats: (productId, items)     => request(`/products/${productId}/stats/reorder`,      { method: 'PATCH',  body: JSON.stringify({ items }) }),
+
+  // ── Product Content: Bulk sync (features + faqs + stats) ──
+  syncProductContent: (productId, body) => request(`/products/${productId}/content`, { method: 'PUT', body: JSON.stringify(body) }),
 
   // Services
   createService: (body)     => request('/services',              { method: 'POST',  body: JSON.stringify(body) }),

@@ -107,3 +107,6 @@ router.patch ('/order-config/price-estimates/:id',       updatePriceEstimateRule
 router.delete('/order-config/price-estimates/:id',       deletePriceEstimateRule);
 
 export default router;
+// Note: Product content routes (features/faqs/changelogs/stats) are handled
+// directly in /api/products/:id/* routes (product.routes.js) since they
+// already apply protect + isAdmin middleware there.

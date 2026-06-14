@@ -309,7 +309,7 @@ export const getReviews = async (req, res, next) => {
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
         include: {
-          user:    { select: { id: true, name: true, email: true } },
+          user:    { select: { id: true, name: true, email: true, role: true } },
           product: { select: { id: true, name: true, slug: true } },
         },
       }),

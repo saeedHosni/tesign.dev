@@ -128,6 +128,13 @@ export const getProduct = async (req, res, next) => {
       include: {
         category: true,
         images:   { orderBy: { sortOrder: 'asc' } },
+        features: { orderBy: { sortOrder: 'asc' } },
+        faqs:     { orderBy: { sortOrder: 'asc' } },
+        stats:    { orderBy: { sortOrder: 'asc' } },
+        changelogs: {
+          orderBy: { releasedAt: 'desc' },
+          take: 10,
+        },
         reviews: {
           where:   { isApproved: true },
           include: { user: { select: { id: true, name: true, avatarUrl: true } } },

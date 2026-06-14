@@ -7,6 +7,7 @@ import {
   Modal, ConfirmDialog, FormField, Input, Textarea, Select, Toast, Spinner,
 } from './AdminUI';
 import { adminApi, productApi } from '../../services/api';
+import AdminProductContentManager from './AdminProductContentManager';
 
 const BADGE_OPTIONS = ['', 'bestseller', 'new', 'featured'];
 const BADGE_LABELS  = { '': 'بدون برچسب', bestseller: 'پرفروش', new: 'جدید', featured: 'پیشنهادی' };
@@ -245,6 +246,7 @@ export default function AdminProductsPage() {
   const [showForm,   setShowForm]   = useState(false);
   const [editItem,   setEditItem]   = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
+  const [contentItem, setContentItem] = useState(null);
   const [saving,     setSaving]     = useState(false);
   const [deleting,   setDeleting]   = useState(false);
   const [toast,      setToast]      = useState(null);
@@ -408,6 +410,12 @@ export default function AdminProductsPage() {
                   <Td className="text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
+                        onClick={() => setContentItem(p)}
+                        className="text-xs text-blue-400 border border-blue-400/25 bg-blue-400/5 hover:bg-blue-400/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                      >
+                        محتوا
+                      </button>
+                      <button
                         onClick={() => openEdit(p)}
                         className="text-xs text-accent-yellow border border-accent-yellow/25 bg-accent-yellow/5 hover:bg-accent-yellow/15 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
                       >
@@ -463,6 +471,15 @@ export default function AdminProductsPage() {
           loading={deleting}
           onConfirm={handleDelete}
           onCancel={() => setDeleteItem(null)}
+        />
+      )}
+
+      {/* Content manager modal */}
+      {contentItem && (
+        <AdminProductContentManager
+          product={contentItem}
+          onClose={() => setContentItem(null)}
+          showToast={showToast}
         />
       )}
 

@@ -38,7 +38,7 @@ export const createReview = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'محصول یافت نشد.' });
     }
 
-    // Verify user purchased this product
+    // Check if user purchased this product (used only for the "verified purchase" badge)
     const hasPurchased = await prisma.orderItem.findFirst({
       where: {
         productId,
@@ -46,26 +46,20 @@ export const createReview = async (req, res, next) => {
       },
     });
 
-    if (!hasPurchased) {
-      return res.status(403).json({
-        success: false,
-        message: 'فقط خریداران این محصول می‌توانند نظر بگذارند.',
-      });
-    }
-
-    // BUG FIX: sanitize title/body length to prevent very long inputs
+    // sanitize title/body length to prevent very long inputs
     const sanitizedTitle = title ? String(title).slice(0, 200) : undefined;
     const sanitizedBody  = body  ? String(body).slice(0, 2000) : undefined;
 
-    const review = await prisma.review.upsert({
-      where: { userId_productId: { userId: req.user.id, productId } },
-      update: { rating: ratingNum, title: sanitizedTitle, body: sanitizedBody, isApproved: false },
-      create: {
+    // Each submission creates a new review; previous reviews by this user are kept untouched.
+    const review = await prisma.review.create({
+      data: {
         userId: req.user.id,
         productId,
         rating: ratingNum,
         title:  sanitizedTitle,
         body:   sanitizedBody,
+        verifiedPurchase: Boolean(hasPurchased),
+        isApproved: false, // requires admin approval before showing publicly
       },
     });
 
@@ -73,7 +67,7 @@ export const createReview = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'نظر شما ثبت شد و پس از تأیید نمایش داده می‌شود.',
+      message: 'نظر شما ثبت شد و پس از تأیید مدیر نمایش داده می‌شود.',
       data: review,
     });
   } catch (error) {
@@ -100,7 +94,7 @@ export const getProductReviews = async (req, res, next) => {
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, name: true, avatarUrl: true } },
+          user: { select: { id: true, name: true, avatarUrl: true, role: true } },
         },
       }),
       prisma.review.count({ where: { productId: req.params.productId, isApproved: true } }),

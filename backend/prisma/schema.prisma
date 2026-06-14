@@ -137,6 +137,10 @@ model Product {
   cartItems     CartItem[]
   wishlistItems WishlistItem[]
   images        ProductImage[]
+  features      ProductFeature[]
+  faqs          ProductFAQ[]
+  changelogs    ProductChangelog[]
+  stats         ProductStat[]
 
   @@index([isActive])
   @@index([isFeatured])
@@ -156,6 +160,63 @@ model ProductImage {
   sortOrder Int     @default(0)
 
   @@map("product_images")
+}
+
+// امکانات/ویژگی‌های قابل نمایش محصول (مثل: «پشتیبانی WPML»، «۱۴۰ صفحه آماده»)
+model ProductFeature {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  icon      String? // اموجی یا نام آیکون
+  title     String
+  value     String? // مقدار اختیاری: «+140» یا «رایگان»
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_features")
+}
+
+// سوالات متداول مرتبط با محصول
+model ProductFAQ {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  question  String
+  answer    String
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_faqs")
+}
+
+// تاریخچه تغییرات محصول (Changelog)
+model ProductChangelog {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  version     String   // مثل «۲.۱» یا «v2.1»
+  title       String?  // عنوان اختیاری نسخه
+  changes     String[] // لیست تغییرات
+  releasedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([releasedAt])
+  @@map("product_changelogs")
+}
+
+// آمار و اعداد قابل نمایش روی صفحه محصول
+model ProductStat {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String  // «تعداد صفحات آماده»
+  value     String  // «+140»
+  icon      String? // اموجی
+  sortOrder Int     @default(0)
+
+  @@index([productId])
+  @@map("product_stats")
 }
 
 // ─── CART ─────────────────────────────────────────────────────────────────────
@@ -333,21 +394,22 @@ enum LeadStatus {
 // ─── REVIEWS ──────────────────────────────────────────────────────────────────
 
 model Review {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  rating     Int      // 1-5
-  title      String?
-  body       String?
-  isApproved Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating           Int      // 1-5
+  title            String?
+  body             String?
+  isApproved       Boolean  @default(false)
+  verifiedPurchase Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  @@unique([userId, productId])
   @@index([productId, isApproved])
   @@index([isApproved])
+  @@index([userId, productId])
   @@map("reviews")
 }
 

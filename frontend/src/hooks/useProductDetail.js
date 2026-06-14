@@ -29,6 +29,10 @@ function normalizeProduct(p, index = 0) {
     reviewCount: p.reviewCount || 0,
     totalSales:  p.totalSales || 0,
     stock:       p.stock,
+    features:    p.features || [],
+    faqs:        p.faqs || [],
+    changelogs:  p.changelogs || [],
+    stats:       p.stats || [],
   };
 }
 

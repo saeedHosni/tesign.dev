@@ -7,8 +7,11 @@ await prisma.orderDownload.deleteMany({});
 await prisma.productImage.deleteMany({});
 await prisma.wishlistItem.deleteMany({});
 await prisma.review.deleteMany({});
+await prisma.productFeature.deleteMany({});
+await prisma.productFAQ.deleteMany({});
+await prisma.productChangelog.deleteMany({});
+await prisma.productStat.deleteMany({});
 await prisma.product.deleteMany({});
 await prisma.category.deleteMany({});
-await prisma.$disconnect();
 
 console.log('✓ پاکسازی انجام شد');

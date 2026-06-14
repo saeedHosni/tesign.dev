@@ -101,6 +101,19 @@ async function main() {
   }
   console.log('  ✓ Services');
 
+  // ─── Products & Categories cleanup (order matters: FKs) ───────────────────
+  await prisma.cartItem.deleteMany({});
+  await prisma.orderItem.deleteMany({});
+  await prisma.orderDownload.deleteMany({});
+  await prisma.productImage.deleteMany({});
+  await prisma.wishlistItem.deleteMany({});
+  await prisma.review.deleteMany({});
+  await prisma.productFeature.deleteMany({});
+  await prisma.productFAQ.deleteMany({});
+  await prisma.productChangelog.deleteMany({});
+  await prisma.productStat.deleteMany({});
+  await prisma.product.deleteMany({});
+
   // ─── Categories ───────────────────────────────────────────────────────────
   await prisma.category.deleteMany({});
   const catWordpress = await prisma.category.create({
@@ -112,9 +125,6 @@ async function main() {
   console.log('  ✓ Categories');
 
   // ─── Products ─────────────────────────────────────────────────────────────
-  await prisma.cartItem.deleteMany({});
-  await prisma.orderItem.deleteMany({});
-  await prisma.product.deleteMany({});
 
   const productsData = [
     {
@@ -175,6 +185,135 @@ async function main() {
     await prisma.product.create({ data: p });
   }
   console.log('  ✓ Products');
+
+  // ─── Product Page Content: Features / FAQs / Changelogs / Stats ───────────
+  const allProducts = await prisma.product.findMany();
+  const bySlug = Object.fromEntries(allProducts.map(p => [p.slug, p]));
+
+  const productContentData = {
+    'business-pro-wordpress-theme': {
+      features: [
+        { icon: '🎨', title: 'دموی آماده',         value: '+30' },
+        { icon: '🌐', title: 'پشتیبانی WPML',       value: null },
+        { icon: '⚡', title: 'بهینه‌سازی سرعت',     value: null },
+        { icon: '📱', title: 'طراحی ریسپانسیو',     value: null },
+        { icon: '🔧', title: 'سازنده صفحه المنتور', value: null },
+        { icon: '🔒', title: 'بروزرسانی امنیتی',    value: null },
+      ],
+      faqs: [
+        { question: 'نصب این قالب چقدر طول می‌کشد؟', answer: 'نصب و راه‌اندازی اولیه قالب معمولاً کمتر از ۱۵ دقیقه زمان می‌برد. همراه با مستندات کامل، می‌توانید به‌سادگی محتوای دمو را وارد کنید و سایت را شخصی‌سازی کنید.' },
+        { question: 'آیا پشتیبانی شامل آپدیت‌های آینده هم می‌شود؟', answer: 'بله، تمام خریداران به‌صورت رایگان به آپدیت‌های آینده قالب دسترسی دارند. همچنین ۳۰ روز پشتیبانی تخصصی برای رفع مشکلات نصب و پیکربندی شامل می‌شود.' },
+        { question: 'آیا این قالب با ووکامرس سازگار است؟', answer: 'این قالب به‌طور کامل با افزونه ووکامرس تست شده و سازگار است، اما برای فروشگاه‌های اختصاصی پیشنهاد می‌کنیم از قالب «فروشگاه اینترنتی» استفاده کنید که از ابتدا برای این منظور طراحی شده است.' },
+      ],
+      changelogs: [
+        { version: '۲.۳', title: 'بهبود سازگاری با المنتور', changes: ['افزودن ۵ دموی جدید', 'رفع باگ نمایش منو در موبایل', 'بهبود سرعت بارگذاری تصاویر'], releasedAt: new Date('2025-12-01') },
+        { version: '۲.۲', title: 'پشتیبانی از وردپرس ۶.۴', changes: ['سازگاری کامل با وردپرس ۶.۴', 'بروزرسانی کتابخانه آیکون‌ها', 'رفع چند باگ کوچک در RTL'], releasedAt: new Date('2025-09-15') },
+        { version: '۲.۰', title: 'بازطراحی کامل پنل تنظیمات', changes: ['پنل تنظیمات جدید و ساده‌تر', 'افزودن قالب‌های هدر و فوتر جدید', 'بهبود عملکرد در دستگاه‌های موبایل'], releasedAt: new Date('2025-05-20') },
+      ],
+      stats: [
+        { icon: '🛒', label: 'تعداد فروش',     value: '412' },
+        { icon: '⭐', label: 'رضایت کاربران',  value: '۹۶٪' },
+        { icon: '🔄', label: 'بروزرسانی‌ها',   value: '۸' },
+        { icon: '📅', label: 'سابقه انتشار',   value: '۲ سال' },
+      ],
+    },
+    'ecommerce-woocommerce-theme': {
+      features: [
+        { icon: '🛍️', title: 'یکپارچه با ووکامرس',  value: null },
+        { icon: '⚡', title: 'سرعت بارگذاری بالا',    value: 'A+' },
+        { icon: '🎨', title: 'دموهای فروشگاهی',      value: '+12' },
+        { icon: '📱', title: 'طراحی موبایل‌فرست',    value: null },
+        { icon: '💳', title: 'پشتیبانی درگاه پرداخت', value: null },
+      ],
+      faqs: [
+        { question: 'آیا درگاه‌های پرداخت ایرانی پشتیبانی می‌شوند؟', answer: 'بله، این قالب با محبوب‌ترین افزونه‌های درگاه پرداخت ایرانی تست شده و بدون نیاز به تنظیمات اضافه کار می‌کند.' },
+        { question: 'برای چند محصول مناسب است؟', answer: 'این قالب برای فروشگاه‌هایی با چند محصول تا چند هزار محصول بهینه شده و عملکرد پایداری در صفحات دسته‌بندی و جستجو دارد.' },
+      ],
+      changelogs: [
+        { version: '۱.۴', title: 'افزودن دموهای جدید', changes: ['۳ دموی فروشگاهی جدید', 'بهبود فیلتر محصولات', 'رفع باگ نمایش قیمت تخفیف‌دار'], releasedAt: new Date('2025-11-10') },
+        { version: '۱.۲', title: 'بهینه‌سازی سرعت', changes: ['کاهش حجم فایل‌های CSS و JS', 'بهبود نمره PageSpeed', 'پشتیبانی از Lazy Load تصاویر'], releasedAt: new Date('2025-08-01') },
+      ],
+      stats: [
+        { icon: '🛒', label: 'تعداد فروش',    value: '287' },
+        { icon: '⭐', label: 'رضایت کاربران', value: '۹۴٪' },
+        { icon: '🔄', label: 'بروزرسانی‌ها',  value: '۵' },
+      ],
+    },
+    'admin-dashboard-ui-kit': {
+      features: [
+        { icon: '🎨', title: 'دموی آماده',          value: '+140' },
+        { icon: '🧩', title: 'کامپوننت‌های متنوع',   value: '+120' },
+        { icon: '🌗', title: 'حالت تیره و روشن',     value: null },
+        { icon: '📐', title: 'لایه‌بندی اصولی',      value: null },
+        { icon: '🔁', title: 'Auto Layout فیگما',    value: null },
+        { icon: '🆓', title: 'فونت‌های رایگان',      value: null },
+      ],
+      faqs: [
+        { question: 'این فایل فیگما نیاز به پلاگین خاصی دارد؟', answer: 'خیر، فایل کاملاً با امکانات استاندارد فیگما (Auto Layout و Variants) ساخته شده و بدون نیاز به پلاگین اضافه قابل استفاده است.' },
+        { question: 'آیا می‌توانم از این کیت برای پروژه‌های تجاری استفاده کنم؟', answer: 'بله، لایسنس این محصول شامل استفاده در پروژه‌های شخصی و تجاری متعدد است. فقط فروش مجدد فایل به همان شکل مجاز نیست.' },
+        { question: 'کامپوننت‌ها برای کدام نوع داشبورد مناسب هستند؟', answer: 'این کیت شامل صفحات و کامپوننت‌هایی برای داشبوردهای آنالیتیکس، مدیریت کاربران، فروشگاه، CRM و پنل‌های مالی است و به‌راحتی قابل تطبیق با پروژه شما خواهد بود.' },
+      ],
+      changelogs: [
+        { version: '۳.۱', title: 'افزودن صفحات CRM', changes: ['۱۰ صفحه جدید برای ماژول CRM', 'بهبود کامپوننت جدول‌ها', 'افزودن حالت موبایل برای نمودارها'], releasedAt: new Date('2025-12-20') },
+        { version: '۳.۰', title: 'بازطراحی سیستم رنگ', changes: ['پالت رنگی جدید بر پایه توکن‌های طراحی', 'پشتیبانی کامل از حالت تیره', 'بروزرسانی همه کامپوننت‌ها با Variants جدید'], releasedAt: new Date('2025-10-05') },
+        { version: '۲.۵', title: 'افزودن ۲۰ کامپوننت جدید', changes: ['کامپوننت‌های فرم پیشرفته', 'ویجت‌های نمودار جدید', 'رفع مشکلات Auto Layout در نسخه‌های قبلی'], releasedAt: new Date('2025-07-12') },
+      ],
+      stats: [
+        { icon: '🛒', label: 'تعداد فروش',     value: '368' },
+        { icon: '⭐', label: 'رضایت کاربران',  value: '۸۴٪' },
+        { icon: '🧩', label: 'تعداد کامپوننت', value: '۱۲۰+' },
+        { icon: '🔄', label: 'بروزرسانی‌ها',   value: '۶' },
+      ],
+    },
+    'mobile-app-figma-template': {
+      features: [
+        { icon: '📱', title: 'سازگار با iOS و Android', value: null },
+        { icon: '🌗', title: 'Dark & Light Mode',        value: null },
+        { icon: '🎨', title: 'صفحات آماده',              value: '+40' },
+        { icon: '🧩', title: 'کامپوننت قابل استفاده مجدد', value: '+60' },
+      ],
+      faqs: [
+        { question: 'آیا فایل برای Adobe XD هم موجود است؟', answer: 'فعلاً این محصول فقط در قالب فایل فیگما ارائه می‌شود. در صورت تغییر، نسخه به‌روز شده برای خریداران قبلی نیز رایگان ارسال خواهد شد.' },
+        { question: 'صفحات شامل چه بخش‌هایی هستند؟', answer: 'این تمپلیت شامل صفحات Onboarding، احراز هویت، داشبورد، پروفایل، نوتیفیکیشن، چت و تنظیمات است که برای اپلیکیشن‌های مختلف قابل تطبیق هستند.' },
+      ],
+      changelogs: [
+        { version: '۱.۳', title: 'افزودن صفحات چت', changes: ['۸ صفحه جدید چت و گفتگو', 'بهبود کامپوننت نوتیفیکیشن', 'رفع مشکل فونت در حالت تیره'], releasedAt: new Date('2025-11-25') },
+        { version: '۱.۱', title: 'بهبود Auto Layout', changes: ['بازسازی همه فریم‌ها با Auto Layout', 'افزودن نسخه تبلت', 'بهینه‌سازی فایل برای حجم کمتر'], releasedAt: new Date('2025-08-18') },
+      ],
+      stats: [
+        { icon: '🛒', label: 'تعداد فروش',    value: '195' },
+        { icon: '⭐', label: 'رضایت کاربران', value: '۹۰٪' },
+        { icon: '📐', label: 'تعداد صفحات',   value: '۴۰+' },
+      ],
+    },
+  };
+
+  for (const [slug, content] of Object.entries(productContentData)) {
+    const product = bySlug[slug];
+    if (!product) continue;
+
+    if (content.features?.length) {
+      await prisma.productFeature.createMany({
+        data: content.features.map((f, i) => ({ ...f, productId: product.id, sortOrder: i })),
+      });
+    }
+    if (content.faqs?.length) {
+      await prisma.productFAQ.createMany({
+        data: content.faqs.map((f, i) => ({ ...f, productId: product.id, sortOrder: i })),
+      });
+    }
+    if (content.changelogs?.length) {
+      await prisma.productChangelog.createMany({
+        data: content.changelogs.map(c => ({ ...c, productId: product.id })),
+      });
+    }
+    if (content.stats?.length) {
+      await prisma.productStat.createMany({
+        data: content.stats.map((s, i) => ({ ...s, productId: product.id, sortOrder: i })),
+      });
+    }
+  }
+  console.log('  ✓ Product content (features, FAQs, changelogs, stats)');
 
   // ─── Site Settings ────────────────────────────────────────────────────────
   await prisma.siteSetting.deleteMany({});
